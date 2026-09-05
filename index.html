@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MotoRide Kenya | Motorcycle Booking</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,system-ui;background:#f5f7fa;color:#101828}
+button,input,select{font:inherit}
+.app{min-height:100vh}
+header{background:#fff;border-bottom:1px solid #e4e7ec;padding:14px 5%;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.logo{font-size:24px;font-weight:900}
+.logo b{color:#16a34a}
+nav button{background:none;border:0;font-weight:700;margin-left:14px;cursor:pointer}
+.pill{padding:9px 14px;border-radius:10px;background:#16a34a!important;color:white}
+.hero{padding:60px 5%;background:linear-gradient(135deg,#e9fff1,#fff)}
+.hero h1{font-size:clamp(40px,7vw,70px);max-width:750px;margin:0 0 16px}
+.hero p{font-size:19px;color:#667085;max-width:680px;line-height:1.6}
+.wrap{max-width:1150px;margin:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:#fff;border:1px solid #e4e7ec;border-radius:18px;padding:22px;box-shadow:0 8px 25px #1018280b}
+section{padding:50px 5%}
+h2{font-size:32px}
+.muted{color:#667085}
+.field{margin:12px 0}
+.field label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}
+.field input,.field select{width:100%;padding:13px;border:1px solid #d0d5dd;border-radius:10px;background:#fff}
+.btn{border:0;border-radius:10px;padding:13px 17px;font-weight:800;cursor:pointer}
+.green{background:#16a34a;color:#fff}
+.dark{background:#101828;color:#fff}
+.danger{background:#fee4e2;color:#b42318}
+.full{width:100%}
+.tabs{display:flex;gap:6px;background:#f2f4f7;padding:5px;border-radius:12px}
+.tabs button{flex:1;border:0;padding:10px;border-radius:8px;cursor:pointer;background:transparent;font-weight:800}
+.tabs .on{background:#fff;box-shadow:0 2px 8px #0001}
+.map{height:260px;border-radius:15px;background:#dff3e6;position:relative;overflow:hidden;margin:15px 0}
+.road{position:absolute;height:4px;background:#fff;transform:rotate(-18deg);width:140%;top:48%;left:-15%;box-shadow:0 65px #fff}
+.pin{position:absolute;font-size:30px;transition:.8s}
+.p1{left:25%;top:25%}
+.p2{right:22%;bottom:20%}
+.riderpin{left:52%;top:45%}
+.status{padding:12px;border-radius:10px;background:#ecfdf3;color:#166534;font-weight:700;margin-top:10px}
+.hidden{display:none}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.stat{background:#101828;color:#fff;padding:25px;border-radius:15px}
+.stat strong{font-size:32px;display:block}
+.modal{position:fixed;inset:0;background:#10182899;display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+.modal .card{width:min(430px,100%)}
+footer{padding:35px 5%;background:#101828;color:#cbd5e1}
+@media(max-width:750px){
+.grid,.stats{grid-template-columns:1fr}
+header nav button:not(.pill){display:none}
+.hero{padding-top:40px}
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<header>
+<div class="logo">Moto<b>Ride</b> 🇰🇪</div>
+<nav>
+<button onclick="show('home')">Home</button>
+<button onclick="show('book')">Book</button>
+<button onclick="show('rider')">Rider</button>
+<button onclick="show('admin')">Admin</button>
+<button class="pill" onclick="openLogin()">Login</button>
+</nav>
+</header>
+
+<main id="home">
+<div class="hero">
+<div class="wrap">
+<h1>Motorcycle rides, made simple.</h1>
+<p>Book a trusted motorcycle, track your trip, and pay easily. A Kenya-ready Uber-style motorcycle booking platform prototype.</p>
+<button class="btn green" onclick="show('book')">Book a ride</button>
+</div>
+</div>
+
+<section>
+<div class="wrap stats">
+<div class="stat"><strong>24/7</strong>Booking access</div>
+<div class="stat"><strong>GPS</strong>Live trip tracking</div>
+<div class="stat"><strong>M-Pesa</strong>Payment ready</div>
+</div>
+</section>
+
+<section>
+<div class="wrap">
+<h2>Everything you need</h2>
+<div class="grid">
+<div class="card"><h3>🏍️ Ride booking</h3><p class="muted">Pickup, destination, service and payment selection.</p></div>
+<div class="card"><h3>📍 Live tracking</h3><p class="muted">A trip map with rider location simulation.</p></div>
+<div class="card"><h3>💳 M-Pesa</h3><p class="muted">Payment screen prepared for M-Pesa STK integration.</p></div>
+<div class="card"><h3>🛠️ Admin dashboard</h3><p class="muted">Monitor customers, riders, trips and revenue.</p></div>
+</div>
+</div>
+</section>
+</main>
+
+<section id="book" class="hidden">
+<div class="wrap">
+<h2>Book a motorcycle</h2>
+<div class="grid">
+
+<div class="card">
+<div class="field">
+<label>Pickup</label>
+<input id="pickup" placeholder="e.g. Westlands">
+</div>
+
+<div class="field">
+<label>Destination</label>
+<input id="dest" placeholder="e.g. Nairobi CBD">
+</div>
+
+<div class="grid">
+<div class="field">
+<label>Service</label>
+<select id="service">
+<option>Motorcycle Ride</option>
+<option>Parcel Delivery</option>
+<option>Express Delivery</option>
+</select>
+</div>
+
+<div class="field">
+<label>Payment</label>
+<select id="pay">
+<option>M-Pesa</option>
+<option>Cash</option>
+</select>
+</div>
+</div>
+
+<button class="btn green full" onclick="requestRide()">Find a rider</button>
+<div id="bookmsg"></div>
+</div>
+
+<div class="card">
+<h3>Your trip</h3>
+<div class="map">
+<div class="road"></div>
+<span class="pin p1">📍</span>
+<span class="pin riderpin" id="riderpin">🏍️</span>
+<span class="pin p2">🏁</span>
+</div>
+<p class="muted">Rider: <b id="ridername">Awaiting request</b></p>
+<p class="muted">ETA: <b id="eta">—</b></p>
+</div>
+
+</div>
+</div>
+</section>
+
+<section id="rider" class="hidden">
+<div class="wrap">
+<h2>Rider portal</h2>
+<div class="grid">
+
+<div class="card">
+<h3>Rider profile</h3>
+<div class="field">
+<label>Name</label>
+<input id="rname" value="Peter Rider">
+</div>
+<div class="field">
+<label>Phone</label>
+<input value="+254 7XX XXX XXX">
+</div>
+<div class="field">
+<label>Motorcycle registration</label>
+<input value="KXX 123X">
+</div>
+<button class="btn green" onclick="toggleOnline(this)">Go online</button>
+</div>
+
+<div class="card">
+<h3>Incoming trip</h3>
+<p>Pickup: <b id="rpick">No active trip</b></p>
+<p>Destination: <b id="rdest">—</b></p>
+<button class="btn dark" onclick="acceptRide()">Accept trip</button>
+<button class="btn danger" onclick="alert('Trip declined')">Decline</button>
+</div>
+
+</div>
+</div>
+</section>
+
+<section id="admin" class="hidden">
+<div class="wrap">
+<h2>Admin dashboard</h2>
+
+<div class="stats">
+<div class="stat"><strong id="trips">0</strong>Trips today</div>
+<div class="stat"><strong id="riders">12</strong>Active riders</div>
+<div class="stat"><strong>KSh <span id="revenue">0</span></strong>Revenue</div>
+</div>
+
+<br>
+
+<div class="card">
+<h3>Recent trips</h3>
+<table style="width:100%;border-collapse:collapse">
+<tbody id="table">
+<tr><td>Demo system ready</td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+
+</div>
+</section>
+
+<footer>MotoRide Kenya © 2026 — Prototype for motorcycle booking.</footer>
+
+</div>
+
+<div class="modal" id="login">
+<div class="card">
+<h2>Login</h2>
+<div class="tabs">
+<button class="on">Customer</button>
+<button>Rider</button>
+</div>
+
+<div class="field">
+<label>Phone or email</label>
+<input placeholder="+254 7XX XXX XXX">
+</div>
+
+<div class="field">
+<label>Password</label>
+<input type="password" placeholder="••••••••">
+</div>
+
+<button class="btn green full" onclick="closeLogin()">Continue</button>
+
+<p class="muted">Demo login — connect your authentication backend for real accounts.</p>
+</div>
+</div>
+
+<script>
+let trips=0,revenue=0;
+
+function show(id){
+document.querySelectorAll('main,section[id]').forEach(x=>x.classList.add('hidden'));
+(document.getElementById(id)||document.getElementById('home')).classList.remove('hidden');
+scrollTo({top:0,behavior:'smooth'});
+}
+
+function openLogin(){
+document.getElementById('login').style.display='flex';
+}
+
+function closeLogin(){
+document.getElementById('login').style.display='none';
+}
+
+function requestRide(){
+let p=pickup.value,d=dest.value;
+if(!p||!d){
+alert('Enter pickup and destination');
+return;
+}
+ridername.textContent='Searching nearby rider…';
+eta.textContent='3–7 min';
+rpick.textContent=p;
+rdest.textContent=d;
+bookmsg.innerHTML='<div class="status">Ride requested. A nearby rider is being matched.</div>';
+
+setTimeout(()=>{
+ridername.textContent='Peter Rider • KXX 123X';
+bookmsg.innerHTML='<div class="status">Rider matched! Track your trip below.</div>';
+},1200);
+}
+
+function acceptRide(){
+alert('Trip accepted. Customer can now track your rider.');
+show('book');
+ridername.textContent='Peter Rider • KXX 123X';
+eta.textContent='2–5 min';
+}
+
+function toggleOnline(b){
+b.textContent=b.textContent==='Go online'?'Online — accepting trips':'Go online';
+b.classList.toggle('dark');
+}
+
+setInterval(()=>{
+let x=document.getElementById('riderpin');
+if(x){
+x.style.left=(45+Math.random()*15)+'%';
+x.style.top=(38+Math.random()*18)+'%';
+}
+},1500);
+</script>
+
+</body>
+                                       </html>
