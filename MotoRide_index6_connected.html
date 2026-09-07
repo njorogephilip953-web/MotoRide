@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#16a34a">
+<title>MotoRide Kenya | Ride. Deliver. Earn.</title>
+<style>
+:root{--green:#16a34a;--green2:#15803d;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc;--card:#fff;--dark:#0b1220}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,Arial,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select{font:inherit}button{cursor:pointer}.app{min-height:100vh}
+header{position:sticky;top:0;z-index:20;background:#ffffffed;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 5%;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:25px;font-weight:950;letter-spacing:-1px}.logo b{color:var(--green)}nav{display:flex;gap:8px;align-items:center}nav button{border:0;background:transparent;padding:9px 11px;font-weight:750;color:#334155;border-radius:10px}nav button:hover{background:#f1f5f9}.pill{background:var(--green)!important;color:#fff!important}
+.wrap{max-width:1120px;margin:auto}.hero{padding:70px 5% 55px;background:radial-gradient(circle at 85% 15%,#dcfce7 0,transparent 30%),linear-gradient(135deg,#effdf4,#fff)}
+.heroGrid{display:grid;grid-template-columns:1.2fr .8fr;gap:35px;align-items:center}.eyebrow{color:var(--green2);font-weight:900;font-size:13px;letter-spacing:1px}.hero h1{font-size:clamp(42px,7vw,76px);line-height:1.02;letter-spacing:-3px;margin:12px 0 18px}.hero p{font-size:19px;line-height:1.65;color:var(--muted);max-width:690px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.btn{border:0;border-radius:12px;padding:14px 18px;font-weight:850}.green{background:var(--green);color:#fff}.dark{background:var(--dark);color:#fff}.light{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.heroCard{background:#fff;border:1px solid var(--line);border-radius:24px;padding:25px;box-shadow:0 20px 60px #0f172a12}.heroBike{font-size:75px;text-align:center;padding:18px}
+section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-size:34px;margin:0 0 8px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 8px 30px #0f172a08}.icon{font-size:30px}.card h3{margin:12px 0 7px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:var(--dark);color:#fff;border-radius:16px;padding:20px}.stat strong{display:block;font-size:29px;margin-bottom:4px}
+.booking{display:grid;grid-template-columns:1fr 1fr;gap:20px}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:800;margin-bottom:6px}.field input,.field select{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;outline:none}.field input:focus,.field select:focus{border-color:var(--green);box-shadow:0 0 0 3px #16a34a18}
+.price{font-size:28px;font-weight:950;margin:10px 0}.notice{margin-top:12px;padding:12px;border-radius:11px;background:#ecfdf5;color:#166534;font-weight:750}.error{background:#fef2f2;color:#991b1b}
+.map{height:300px;border-radius:16px;background:linear-gradient(135deg,#dcfce7,#e2e8f0);position:relative;overflow:hidden;margin-top:14px}.road{position:absolute;width:140%;height:10px;background:#fff;left:-20%;top:46%;transform:rotate(-17deg);box-shadow:0 75px 0 #fff}.pin{position:absolute;font-size:31px;transition:1s}.pickupPin{left:18%;top:25%}.destPin{right:17%;bottom:18%}.riderPin{left:52%;top:43%}
+.roleGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.hidden{display:none!important}
+.tableWrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+.modal{position:fixed;inset:0;background:#02061799;display:none;align-items:center;justify-content:center;padding:18px;z-index:50}.modal .card{width:min(460px,100%);max-height:90vh;overflow:auto}.close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:36px;height:36px;font-size:20px}
+footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:25px}.footerTitle{color:#fff;font-weight:900;font-size:22px}
+@media(max-width:800px){nav button:not(.pill){display:none}.heroGrid,.booking,.roleGrid,.footerGrid{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.hero{padding-top:42px}.hero h1{letter-spacing:-2px}}
+@media(max-width:480px){.stats{grid-template-columns:1fr}.actions .btn{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">Moto<b>Ride</b> 🇰🇪</div>
+  <nav>
+    <button onclick="go('home')">Home</button>
+    <button onclick="go('book')">Book</button>
+    <button onclick="go('rider')">Rider</button>
+    <button onclick="go('business')">Business</button>
+    <button class="pill" onclick="openAuth()">Login / Sign up</button>
+  </nav>
+</header>
+
+<main id="home">
+<section class="hero">
+ <div class="wrap heroGrid">
+  <div>
+   <div class="eyebrow">MOTORCYCLE RIDES • DELIVERY • BUSINESS</div>
+   <h1>Ride faster.<br>Build with MotoRide.</h1>
+   <p>A Kenya-focused motorcycle platform designed to connect customers with riders, accept bookings, grow delivery services and create a sustainable commission business.</p>
+   <div class="actions">
+    <button class="btn green" onclick="go('book')">🏍️ Book a ride</button>
+    <button class="btn dark" onclick="openAuth()">Create account</button>
+    <button class="btn light" onclick="go('rider')">🛵 Rider Portal</button>
+   </div>
+  </div>
+  <div class="heroCard">
+   <div class="heroBike">🏍️</div>
+   <h3>One platform, multiple income streams</h3>
+   <p class="muted">Ride commissions • Delivery fees • Business accounts • Rider services</p>
+   <div class="notice">Next: connect real accounts, bookings and payments.</div>
+  </div>
+ </div>
+</section>
+
+<section>
+ <div class="wrap stats">
+  <div class="stat"><strong>24/7</strong>Online bookings</div>
+  <div class="stat"><strong>15%</strong>15% platform commission</div>
+  <div class="stat"><strong>M-Pesa</strong>Payment target</div>
+  <div class="stat"><strong>Kenya</strong>Built for local use</div>
+ </div>
+</section>
+
+<section>
+ <div class="wrap">
+  <div class="sectionHead"><h2>What MotoRide can sell</h2><p class="muted">Start with rides, then expand the business.</p></div>
+  <div class="grid">
+   <div class="card"><div class="icon">🏍️</div><h3>Passenger rides</h3><p class="muted">Customers request a rider and pay for completed trips.</p></div>
+   <div class="card"><div class="icon">📦</div><h3>Parcel delivery</h3><p class="muted">Earn delivery fees while riders handle local parcels.</p></div>
+   <div class="card"><div class="icon">🏢</div><h3>Business accounts</h3><p class="muted">Serve shops and companies with recurring transport needs.</p></div>
+  </div>
+ </div>
+</section>
+</main>
+
+<section id="book" class="hidden">
+ <div class="wrap">
+  <div class="sectionHead"><h2>Book a motorcycle</h2><p class="muted">Enter the trip details and get an estimated fare.</p></div>
+  <div class="booking">
+   <div class="card">
+    <div class="field"><label>Pickup location</label><input id="pickup" placeholder="e.g. Westlands"></div>
+    <div class="field"><label>Destination</label><input id="dest" placeholder="e.g. Nairobi CBD"></div>
+    <div class="field"><label>Service</label>
+      <select id="service"><option value="ride">Motorcycle Ride</option><option value="parcel">Parcel Delivery</option><option value="express">Express Delivery</option></select>
+    </div>
+    <div class="field"><label>Payment method</label>
+      <select id="pay"><option>M-Pesa</option><option>Cash</option></select>
+    </div>
+    <button class="btn green" style="width:100%" onclick="estimateAndRequest()">Estimate & request</button>
+    <div id="bookmsg"></div>
+   </div>
+   <div class="card">
+    <h3>Your trip</h3>
+    <div class="map"><div class="road"></div><span class="pin pickupPin">📍</span><span class="pin riderPin" id="riderPin">🏍️</span><span class="pin destPin">🏁</span></div>
+    <p class="muted">Rider: <b id="riderName">Awaiting request</b></p>
+    <p class="muted">ETA: <b id="eta">—</b></p>
+    <div class="price" id="fare">KSh —</div>
+    <p class="muted">Final fare will use real distance when maps/GPS are connected.</p>
+   </div>
+  </div>
+  <div class="card" style="margin-top:18px"><h3>Your recent bookings</h3><div id="myBookings"><p class="muted">Log in to see your bookings.</p></div></div>
+ </div>
+</section>
+
+<section id="rider" class="hidden">
+ <div class="wrap">
+  <div class="sectionHead"><h2>Rider portal</h2><p class="muted">Register as a rider, go online and receive customer bookings.</p><button class="btn green" onclick="openAuth('signup','rider')">Rider sign up / log in</button></div>
+  <div class="roleGrid">
+   <div class="card">
+    <h3>Rider profile</h3>
+    <div class="field"><label>Name</label><input id="rname" value="New Rider"></div>
+    <div class="field"><label>Phone</label><input id="rphone" placeholder="07XX XXX XXX"></div>
+    <div class="field"><label>Motorcycle model</label><input id="rmodel" placeholder="e.g. Boxer 150"></div>
+    <div class="field"><label>Motorcycle registration</label><input id="reg" placeholder="KXX 123X"></div>
+    <div class="field"><label>National ID number</label><input id="ridnumber" placeholder="National ID number"></div>
+    <button class="btn light" onclick="saveRiderProfile()">Save rider profile</button>
+    <button class="btn green" onclick="toggleOnline(this)">Go online</button>
+    <div id="onlineMsg" class="notice">Offline</div>
+   </div>
+   <div class="card">
+    <h3>Incoming trip</h3>
+    <p>Pickup: <b id="rpick">No active trip</b></p>
+    <p>Destination: <b id="rdest">—</b></p>
+    <p>Estimated fare: <b id="rfare">KSh —</b></p>
+    <button class="btn dark" onclick="acceptTrip()">Accept trip</button>
+    <button class="btn light" onclick="declineTrip()">Decline</button>
+    <div id="riderMsg"></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section id="business" class="hidden">
+ <div class="wrap">
+  <div class="sectionHead"><h2>Grow MotoRide</h2><p class="muted">The business side of the platform.</p></div>
+  <div class="grid">
+   <div class="card"><div class="icon">💰</div><h3>Ride commission</h3><p class="muted">Example: if a KSh 200 ride has a 15% platform commission, MotoRide earns KSh 30 before expenses.</p></div>
+   <div class="card"><div class="icon">📦</div><h3>Delivery revenue</h3><p class="muted">Charge customers for local parcel and express delivery services.</p></div>
+   <div class="card"><div class="icon">📊</div><h3>Admin control</h3><p class="muted">Track customers, riders, trips, payouts and revenue from one dashboard.</p></div>
+  </div>
+ </div>
+</section>
+
+<section id="admin" class="hidden">
+ <div class="wrap">
+  <div class="sectionHead"><h2>Admin dashboard</h2><p class="muted">Business monitoring screen — Admin security uses Supabase RLS.</p></div>
+  <div class="stats">
+   <div class="stat"><strong id="aTrips">0</strong>Trips online</div>
+   <div class="stat"><strong id="aRiders">0</strong>Riders online</div>
+   <div class="stat"><strong id="aRevenue">KSh 0</strong>Gross online revenue</div>
+   <div class="stat"><strong id="aCommission">KSh 0</strong>15% platform commission</div>
+  </div>
+  <div class="card" style="margin-top:18px"><h3>Recent bookings</h3><div class="tableWrap"><table><thead><tr><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Status</th></tr></thead><tbody id="tripTable"><tr><td colspan="5">No bookings yet.</td></tr></tbody></table></div></div>
+ </div>
+</section>
+
+<footer>
+ <div class="wrap footerGrid">
+  <div><div class="footerTitle">MotoRide 🇰🇪</div><p>Motorcycle rides and delivery, designed for a growing Kenyan business.</p></div>
+  <div><b>Services</b><p>Rides<br>Parcel delivery<br>Business accounts</p></div>
+  <div><b>Next build</b><p>Real accounts<br>Live matching<br>M-Pesa payments</p></div>
+ </div>
+ <div class="wrap" style="margin-top:25px;border-top:1px solid #243047;padding-top:18px">© 2026 MotoRide Kenya</div>
+</footer>
+
+<div class="modal" id="authModal">
+ <div class="card">
+  <button class="close" onclick="closeAuth()">×</button>
+  <h2 id="authTitle">MotoRide account</h2>
+  <p class="muted" id="authHelp">Create an account or sign in to book a motorcycle.</p>
+  <div style="display:flex;gap:8px;margin:12px 0">
+   <button id="signupTab" class="btn green" style="flex:1" onclick="setAuthMode('signup')">Create account</button>
+   <button id="loginTab" class="btn light" style="flex:1" onclick="setAuthMode('login')">Log in</button>
+  </div>
+  <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+  <div id="riderFields" style="display:none">
+   <div class="field"><label>Rider name</label><input id="authRiderName" placeholder="Your full name"></div>
+   <div class="field"><label>Phone</label><input id="authRiderPhone" placeholder="07XX XXX XXX"></div>
+   <div class="field"><label>Motorcycle model</label><input id="authRiderModel" placeholder="e.g. Boxer 150"></div>
+   <div class="field"><label>Motorcycle registration</label><input id="authRiderPlate" placeholder="KXX 123X"></div>
+   <div class="field"><label>National ID number</label><input id="authRiderId" placeholder="National ID number"></div>
+  </div>
+  <button id="authAction" class="btn green" style="width:100%" onclick="submitAuth()">Create account</button>
+  <div id="authMsg"></div>
+ </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://nvqcxrvqexxizrlwpmrv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_QN-2s3abh47eTDJY63vd2Q_BYjdReAz";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+</script>
+<script>
+let bookings=JSON.parse(localStorage.getItem('motoride_bookings')||'[]');
+let online=false;
+let authMode='signup';
+let authRole='customer';
+let currentRideId=localStorage.getItem('motoride_last_ride')||null;
+
+function go(id){
+ document.querySelectorAll('main,section[id]').forEach(x=>x.classList.add('hidden'));
+ const el=document.getElementById(id)||document.getElementById('home');
+ el.classList.remove('hidden');
+ window.scrollTo({top:0,behavior:'smooth'});
+ if(id==='admin')renderAdmin();
+ if(id==='book')loadMyBookings();
+ if(id==='rider'){loadRiderProfile();startRiderWatcher();}
+}
+function openAuth(mode='signup',role='customer'){authRole=role;setAuthMode(mode);document.getElementById('authModal').style.display='flex'}
+function closeAuth(){document.getElementById('authModal').style.display='none'}
+function setAuthMode(mode){
+ authMode=mode;
+ const signup=mode==='signup';
+ document.getElementById('authTitle').textContent=signup?'Create your MotoRide account':'Log in to MotoRide';
+ document.getElementById('authHelp').textContent=authRole==='rider'?(signup?'Create your rider account and profile.':'Sign in to your MotoRide rider account.'):(signup?'Create an account to request and track rides.':'Use your MotoRide email and password to continue booking.');
+ document.getElementById('riderFields').style.display=authRole==='rider'&&signup?'block':'none';
+ document.getElementById('authAction').textContent=signup?'Create account':'Log in';
+ document.getElementById('signupTab').className=signup?'btn green':'btn light';
+ document.getElementById('loginTab').className=signup?'btn light':'btn green';
+ document.getElementById('authMsg').textContent='';
+}
+async function submitAuth(){
+ const e=document.getElementById('email').value.trim(),p=document.getElementById('password').value,box=document.getElementById('authMsg');
+ if(!e||p.length<6){box.className='notice error';box.textContent='Enter a valid email and a password of at least 6 characters.';return}
+ box.className='notice';box.textContent=authMode==='signup'?'Creating your account…':'Signing you in…';
+ let result;
+ if(authMode==='signup') result=await supabaseClient.auth.signUp({email:e,password:p,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+ else result=await supabaseClient.auth.signInWithPassword({email:e,password:p});
+ const {data,error}=result;
+ if(error){box.className='notice error';box.textContent=error.message;return}
+ if(authMode==='signup' && !data.session){box.className='notice';box.textContent=authRole==='rider'?'Rider account created. Check your email to confirm it, then return and log in.':'Account created. Check your email to confirm the account, then return here and log in.';return}
+ if(authRole==='rider'){
+   const u=data.user;
+   const payload={id:u.id,motorcycle_model:document.getElementById('authRiderModel').value.trim()||null,motorcycle_plate:document.getElementById('authRiderPlate').value.trim()||null,id_number:document.getElementById('authRiderId').value.trim()||null,is_online:false,is_available:true};
+   const {error:re}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
+   if(re){box.className='notice error';box.textContent='Account signed in, but rider profile could not be saved: '+re.message;return}
+   box.className='notice';box.textContent='Rider account ready. Open Rider and go online when you are ready.';
+ } else {box.className='notice';box.textContent='You are signed in. You can now book a ride.';}
+ setTimeout(closeAuth,900);
+}
+async function showAccountState(){
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ const buttons=document.querySelectorAll('header nav .pill');
+ buttons.forEach(b=>b.textContent=user?'Account / Log out':'Login / Sign up');
+}
+supabaseClient.auth.onAuthStateChange((_event,session)=>{showAccountState();if(session){loadRiderProfile();}});
+showAccountState();
+
+function estimateFare(){
+ const type=document.getElementById('service').value;
+ const base={ride:150,parcel:250,express:350}[type]||150;
+ const fare=base+100;
+ document.getElementById('fare').textContent='KSh '+fare;
+ return fare;
+}
+
+async function estimateAndRequest(){
+ const p=document.getElementById('pickup').value.trim(),d=document.getElementById('dest').value.trim(),msg=document.getElementById('bookmsg');
+ if(!p||!d){msg.className='notice error';msg.textContent='Please enter both pickup and destination.';return}
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ if(!user){msg.className='notice error';msg.textContent='Please log in or create an account before booking.';openAuth('login');return}
+ const service=document.getElementById('service').value;
+ const payment=document.getElementById('pay').value;
+ const fare=estimateFare();
+ msg.className='notice';msg.textContent='Saving your booking…';
+ const {data,error}=await supabaseClient.from('rides').insert({customer_id:user.id,pickup_location:p,destination:d,service_type:service,payment_method:payment,fare,status:'requested'}).select().single();
+ if(error){msg.className='notice error';msg.textContent='Could not create the booking: '+error.message;return}
+ currentRideId=data.id;
+ localStorage.setItem('motoride_last_ride',data.id);
+ document.getElementById('riderName').textContent='Searching for a rider…';
+ document.getElementById('eta').textContent='3–7 min';
+ msg.className='notice';msg.textContent='Booking confirmed. Your request is now visible to the MotoRide system.';
+ await loadMyBookings();
+ startRideWatcher(data.id);
+}
+
+async function loadMyBookings(){
+ const box=document.getElementById('bookmsg');
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ if(!user)return;
+ const {data,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,service_type,payment_method,fare,status,created_at').eq('customer_id',user.id).order('created_at',{ascending:false}).limit(10);
+ if(error)return;
+ const list=document.getElementById('myBookings');
+ if(list){list.innerHTML=data.length?data.map(r=>`<div class="card" style="margin-top:10px"><b>${escapeHtml(r.pickup_location)} → ${escapeHtml(r.destination)}</b><div class="muted" style="margin-top:5px">${escapeHtml(r.service_type||'ride')} • ${escapeHtml(r.payment_method||'M-Pesa')} • KSh ${Number(r.fare||0)} • <b>${escapeHtml(r.status)}</b></div></div>`).join(''):'<p class="muted">No bookings yet.</p>'}
+}
+
+let rideTimer=null;
+function startRideWatcher(id){
+ if(rideTimer)clearInterval(rideTimer);
+ const check=async()=>{
+  const {data,error}=await supabaseClient.from('rides').select('status,rider_id,accepted_at,completed_at').eq('id',id).maybeSingle();
+  if(error||!data)return;
+  const msg=document.getElementById('bookmsg');
+  if(data.status==='accepted'){document.getElementById('riderName').textContent='Rider assigned';document.getElementById('eta').textContent='Rider accepted';msg.className='notice';msg.textContent='A rider has accepted your booking.';}
+  else if(data.status==='completed'){document.getElementById('riderName').textContent='Trip completed';document.getElementById('eta').textContent='—';msg.className='notice';msg.textContent='Your MotoRide trip is complete.';clearInterval(rideTimer);}
+  else if(data.status==='cancelled'){document.getElementById('riderName').textContent='Booking cancelled';document.getElementById('eta').textContent='—';msg.className='notice error';msg.textContent='This booking was cancelled.';clearInterval(rideTimer);}
+ };
+ check(); rideTimer=setInterval(check,5000);
+}
+
+async function saveRiderProfile(){
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ const m=document.getElementById('onlineMsg');
+ if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
+ const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,identification_number:document.getElementById('ridnumber').value.trim()||null};
+ const {error}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
+ m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved.';
+}
+async function loadRiderProfile(){
+ const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
+ const {data}=await supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available').eq('id',user.id).maybeSingle();
+ if(!data)return;
+ document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
+ online=!!data.is_online;
+ const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
+ const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=online?'Online — accepting trips':'Offline';
+}
+async function toggleOnline(btn){
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ if(!user){document.getElementById('onlineMsg').className='notice error';document.getElementById('onlineMsg').textContent='Please sign in as a rider first.';openAuth('login','rider');return}
+ await saveRiderProfile();
+ const next=!online;
+ const {error}=await supabaseClient.from('riders').update({is_online:next,is_available:next}).eq('id',user.id);
+ const m=document.getElementById('onlineMsg');
+ if(error){m.className='notice error';m.textContent=error.message;return}
+ online=next;btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';m.className='notice';m.textContent=online?'Online — accepting trips':'Offline';
+ if(online)loadIncomingTrip();
+}
+let riderTimer=null;
+async function loadIncomingTrip(){
+ const {data:{user}}=await supabaseClient.auth.getUser(); if(!user||!online)return;
+ const {data:ride,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,service_type').eq('status','requested').is('rider_id',null).order('created_at',{ascending:true}).limit(1).maybeSingle();
+ if(error)return;
+ document.getElementById('rpick').textContent=ride?ride.pickup_location:'No active trip';
+ document.getElementById('rdest').textContent=ride?ride.destination:'—';
+ document.getElementById('rfare').textContent=ride?'KSh '+Number(ride.fare||0):'KSh —';
+ window.currentIncomingRide=ride?ride.id:null;
+}
+function startRiderWatcher(){if(riderTimer)clearInterval(riderTimer);riderTimer=setInterval(loadIncomingTrip,5000);loadIncomingTrip()}
+async function acceptTrip(){
+ const m=document.getElementById('riderMsg');
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
+ if(!online){m.className='notice error';m.textContent='Go online before accepting trips.';return}
+ const id=window.currentIncomingRide;
+ if(!id){m.className='notice error';m.textContent='No active trip to accept.';return}
+ m.className='notice';m.textContent='Accepting trip…';
+ const {data,error}=await supabaseClient.rpc('accept_requested_ride',{ride_id:id});
+ if(error){m.className='notice error';m.textContent=error.message;return}
+ m.className='notice';m.textContent='Trip accepted. Customer has been notified.';
+ document.getElementById('rpick').textContent=data.pickup_location;document.getElementById('rdest').textContent=data.destination;document.getElementById('rfare').textContent='KSh '+Number(data.fare||0);
+ online=true;document.getElementById('onlineMsg').textContent='Online — trip in progress';
+ loadMyBookings();
+}
+function declineTrip(){document.getElementById('riderMsg').className='notice';document.getElementById('riderMsg').textContent='Trip declined.'}
+async function renderAdmin(){
+ const {data:rides,error}=await supabaseClient.from('rides').select('pickup_location,destination,service_type,fare,status,created_at').order('created_at',{ascending:false}).limit(30);
+ if(error)return;
+ const total=(rides||[]).reduce((s,x)=>s+Number(x.fare||0),0);
+ document.getElementById('aTrips').textContent=(rides||[]).length;
+ document.getElementById('aRevenue').textContent='KSh '+total;
+ document.getElementById('aCommission').textContent='KSh '+Math.round(total*.15);
+ const body=document.getElementById('tripTable');
+ body.innerHTML=(rides&&rides.length)?rides.slice(0,10).map(x=>`<tr><td>${escapeHtml(x.pickup_location)}</td><td>${escapeHtml(x.destination)}</td><td>${escapeHtml(x.service_type||'ride')}</td><td>KSh ${x.fare}</td><td>${escapeHtml(x.status)}</td></tr>`).join(''):'<tr><td colspan="5">No bookings yet.</td></tr>';
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+setInterval(()=>{const x=document.getElementById('riderPin');if(x){x.style.left=(45+Math.random()*16)+'%';x.style.top=(38+Math.random()*18)+'%'}},1800);
+</script>
+</body>
+</html>
