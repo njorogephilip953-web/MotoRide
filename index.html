@@ -123,7 +123,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="field"><label>Phone</label><input id="rphone" placeholder="07XX XXX XXX"></div>
     <div class="field"><label>Motorcycle model</label><input id="rmodel" placeholder="e.g. Boxer 150"></div>
     <div class="field"><label>Motorcycle registration</label><input id="reg" placeholder="KXX 123X"></div>
-    <div class="field"><label>Driving licence number</label><input id="rlicense" placeholder="Licence number"></div>
+    <div class="field"><label>National ID number</label><input id="ridnumber" placeholder="National ID number"></div>
     <button class="btn light" onclick="saveRiderProfile()">Save rider profile</button>
     <button class="btn green" onclick="toggleOnline(this)">Go online</button>
     <div id="onlineMsg" class="notice">Offline</div>
@@ -189,7 +189,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
    <div class="field"><label>Phone</label><input id="authRiderPhone" placeholder="07XX XXX XXX"></div>
    <div class="field"><label>Motorcycle model</label><input id="authRiderModel" placeholder="e.g. Boxer 150"></div>
    <div class="field"><label>Motorcycle registration</label><input id="authRiderPlate" placeholder="KXX 123X"></div>
-   <div class="field"><label>Driving licence number</label><input id="authRiderLicense" placeholder="Licence number"></div>
+   <div class="field"><label>National ID number</label><input id="authRiderId" placeholder="National ID number"></div>
   </div>
   <button id="authAction" class="btn green" style="width:100%" onclick="submitAuth()">Create account</button>
   <div id="authMsg"></div>
@@ -244,7 +244,7 @@ async function submitAuth(){
  if(authMode==='signup' && !data.session){box.className='notice';box.textContent=authRole==='rider'?'Rider account created. Check your email to confirm it, then return and log in.':'Account created. Check your email to confirm the account, then return here and log in.';return}
  if(authRole==='rider'){
    const u=data.user;
-   const payload={id:u.id,motorcycle_model:document.getElementById('authRiderModel').value.trim()||null,motorcycle_plate:document.getElementById('authRiderPlate').value.trim()||null,license_number:document.getElementById('authRiderLicense').value.trim()||null,is_online:false,is_available:true};
+   const payload={id:u.id,motorcycle_model:document.getElementById('authRiderModel').value.trim()||null,motorcycle_plate:document.getElementById('authRiderPlate').value.trim()||null,id_number:document.getElementById('authRiderId').value.trim()||null,is_online:false,is_available:true};
    const {error:re}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
    if(re){box.className='notice error';box.textContent='Account signed in, but rider profile could not be saved: '+re.message;return}
    box.className='notice';box.textContent='Rider account ready. Open Rider and go online when you are ready.';
@@ -315,15 +315,15 @@ async function saveRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser();
  const m=document.getElementById('onlineMsg');
  if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
- const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,license_number:document.getElementById('rlicense').value.trim()||null};
+ const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,identification_number:document.getElementById('ridnumber').value.trim()||null};
  const {error}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
  m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved.';
 }
 async function loadRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
- const {data}=await supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,license_number,is_online,is_available').eq('id',user.id).maybeSingle();
+ const {data}=await supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available').eq('id',user.id).maybeSingle();
  if(!data)return;
- document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('rlicense').value=data.license_number||'';
+ document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
  online=!!data.is_online;
  const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
  const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=online?'Online — accepting trips':'Offline';
