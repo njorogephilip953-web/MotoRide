@@ -373,9 +373,13 @@ async function saveRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser();
  const m=document.getElementById('onlineMsg');
  if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
+ const fullName=document.getElementById('rname').value.trim();
+ const phone=document.getElementById('rphone').value.trim();
+ const {error:profileError}=await supabaseClient.from('profiles').upsert({id:user.id,full_name:fullName,phone,role:'rider'},{onConflict:'id'});
+ if(profileError){m.className='notice error';m.textContent='Could not save name and phone: '+profileError.message;return}
  const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,identification_number:document.getElementById('ridnumber').value.trim()||null};
  const {error}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
- m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved.';
+ m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved, including your name and phone.';
 }
 async function loadRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
