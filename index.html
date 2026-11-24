@@ -22,6 +22,7 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
 .map{height:300px;border-radius:16px;background:linear-gradient(135deg,#dcfce7,#e2e8f0);position:relative;overflow:hidden;margin-top:14px}.road{position:absolute;width:140%;height:10px;background:#fff;left:-20%;top:46%;transform:rotate(-17deg);box-shadow:0 75px 0 #fff}.pin{position:absolute;font-size:31px;transition:1s}.pickupPin{left:18%;top:25%}.destPin{right:17%;bottom:18%}.riderPin{left:52%;top:43%}
 .roleGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.hidden{display:none!important}
 .tableWrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+.adminAction{display:flex;gap:7px;align-items:center;min-width:210px}.adminAction select{min-width:0;flex:1;width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:13px}.adminAction .btn{padding:9px 12px;font-size:13px;white-space:nowrap}
 @media(max-width:640px){
  #admin .tableWrap{overflow:visible}
  #admin .tableWrap table,#admin .tableWrap tbody{display:block;width:100%}
@@ -31,6 +32,9 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
  #admin .tableWrap tbody td:before{content:attr(data-label);font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.35px}
  #admin .tableWrap tbody td[colspan]{display:block;grid-column:1/-1}
  #admin .tableWrap tbody td[colspan]:before{content:none}
+ #admin .tableWrap tbody td[data-label="Admin action"]{grid-column:1/-1}
+ #admin .adminAction{min-width:0;width:100%}
+ #admin .adminAction select{min-width:0}
 }
 .modal{position:fixed;inset:0;background:#02061799;display:none;align-items:center;justify-content:center;padding:18px;z-index:50}.modal .card{width:min(460px,100%);max-height:90vh;overflow:auto}.close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:36px;height:36px;font-size:20px}
 footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:25px}.footerTitle{color:#fff;font-weight:900;font-size:22px}
