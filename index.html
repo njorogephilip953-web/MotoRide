@@ -95,8 +95,9 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
       <select id="service"><option value="ride">Motorcycle Ride</option><option value="parcel">Parcel Delivery</option><option value="express">Express Delivery</option></select>
     </div>
     <div class="field"><label>Payment method</label>
-      <select id="pay"><option>M-Pesa</option><option>Cash</option></select>
+      <select id="pay" onchange="toggleMpesaPhone()"><option>M-Pesa</option><option>Cash</option></select>
     </div>
+    <div class="field" id="mpesaPhoneField"><label>M-Pesa phone number</label><input id="mpesaPhone" type="tel" inputmode="tel" placeholder="07XXXXXXXX" autocomplete="tel"><small class="muted">Sandbox testing uses the test phone number shown in your Daraja test credentials.</small></div>
     <button class="btn green" style="width:100%" onclick="estimateAndRequest()">Estimate & request</button>
     <div id="bookmsg"></div>
    </div>
@@ -293,6 +294,12 @@ async function capturePickupLocation(){
   msg.textContent='GPS location ready. Nearby rider matching is enabled.';msg.className='notice';
  }catch(error){customerPickupCoords=null;msg.textContent='Location not available: '+error.message;msg.className='muted'}
 }
+function toggleMpesaPhone(){
+ const field=document.getElementById('mpesaPhoneField');
+ if(field)field.style.display=document.getElementById('pay').value==='M-Pesa'?'block':'none';
+}
+toggleMpesaPhone();
+
 function estimateFare(){
  const type=document.getElementById('service').value;
  const base={ride:150,parcel:250,express:350}[type]||150;
@@ -315,6 +322,14 @@ async function estimateAndRequest(){
  if(error){msg.className='notice error';msg.textContent='Could not create the booking: '+error.message;return}
  currentRideId=data.id;
  localStorage.setItem('motoride_last_ride',data.id);
+ if(payment==='M-Pesa'){
+  const mpesaPhone=document.getElementById('mpesaPhone').value.trim();
+  if(!mpesaPhone){msg.className='notice error';msg.textContent='Enter the M-Pesa phone number to receive the payment prompt.';return}
+  msg.className='notice';msg.textContent='Booking saved. Sending M-Pesa payment prompt…';
+  const {data:paymentResult,error:paymentError}=await supabaseClient.functions.invoke('mpesa-stk-push',{body:{ride_id:data.id,phone_number:mpesaPhone}});
+  if(paymentError||paymentResult?.error){msg.className='notice error';msg.textContent='Booking saved, but M-Pesa prompt failed: '+(paymentResult?.error||paymentError.message);return}
+  msg.className='notice';msg.textContent='Booking saved. '+(paymentResult.message||'M-Pesa prompt sent. Check your phone and enter your M-Pesa PIN.');
+ }
  document.getElementById('riderName').textContent='Searching for a rider…';
  document.getElementById('eta').textContent='3–7 min';
  msg.className='notice';msg.textContent='Booking confirmed. Your request is now visible to the MotoRide system.';
