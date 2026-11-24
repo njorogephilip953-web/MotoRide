@@ -520,27 +520,34 @@ async function renderAdmin(){
  const msg=document.getElementById('adminMsg');
  const {data:{user},error:authError}=await supabaseClient.auth.getUser();
  const isAdmin=!!user&&user.app_metadata&&user.app_metadata.role==='admin';
- if(authError||!isAdmin){go('home');msg.className='notice error';msg.textContent='Admin access is restricted. Sign in with an account authorised by MotoRide.';return}
- msg.className='notice hidden';msg.textContent='';
- const [rr,dr,pr,cr]=await Promise.all([
-  supabaseClient.from('rides').select('pickup_location,destination,service_type,fare,status,payment_status,created_at',{count:'exact'}).order('created_at',{ascending:false}).limit(50),
-  supabaseClient.from('riders').select('id,motorcycle_model,motorcycle_plate,is_online,is_available').order('created_at',{ascending:false}).limit(50),
-  supabaseClient.from('payments').select('amount,method,status,mpesa_receipt,created_at').order('created_at',{ascending:false}).limit(50),
-  supabaseClient.from('profiles').select('id',{count:'exact',head:true}).eq('role','customer')
- ]);
- const failed=[rr,dr,pr,cr].find(x=>x.error);if(failed){msg.className='notice error';msg.textContent='Dashboard data could not be loaded: '+failed.error.message;return}
- const rides=rr.data||[],riders=dr.data||[],payments=pr.data||[];
- const paid=payments.filter(p=>['paid','success','successful','completed'].includes(String(p.status||'').toLowerCase()));
- const revenue=paid.reduce((sum,p)=>sum+Number(p.amount||0),0);
- document.getElementById('aTrips').textContent=rr.count??rides.length;
- document.getElementById('aRiders').textContent=riders.filter(r=>r.is_online&&r.is_available).length;
- document.getElementById('aCustomers').textContent=cr.count??'—';
+ if(authError||!isAdmin){
+  msg.className='notice error';
+  msg.textContent='Admin access is restricted. Sign in with the authorised MotoRide administrator account.';
+  return;
+ }
+ msg.className='notice';
+ msg.textContent='Administrator access verified: '+(user.email||'authorised account')+'. Loading live business data…';
+ const {data,error}=await supabaseClient.rpc('get_motoride_admin_dashboard');
+ if(error){
+  msg.className='notice error';
+  msg.textContent='Dashboard data could not be loaded: '+error.message;
+  return;
+ }
+ const summary=data?.summary||{};
+ const rides=data?.rides||[];
+ const riders=data?.riders||[];
+ const payments=data?.payments||[];
+ const revenue=Number(summary.paid_revenue||0);
+ document.getElementById('aTrips').textContent=Number(summary.total_bookings||0).toLocaleString('en-KE');
+ document.getElementById('aRiders').textContent=Number(summary.online_riders||0).toLocaleString('en-KE');
+ document.getElementById('aCustomers').textContent=Number(summary.customers||0).toLocaleString('en-KE');
  document.getElementById('aRevenue').textContent='KSh '+revenue.toLocaleString('en-KE');
- document.getElementById('aCommission').textContent='KSh '+Math.round(revenue*.15).toLocaleString('en-KE');
- document.getElementById('aPending').textContent=payments.filter(p=>String(p.status||'').toLowerCase()==='pending').length;
- document.getElementById('tripTable').innerHTML=rides.length?rides.slice(0,20).map(x=>'<tr><td>'+escapeHtml(x.pickup_location)+'</td><td>'+escapeHtml(x.destination)+'</td><td>'+escapeHtml(x.service_type||'ride')+'</td><td>KSh '+Number(x.fare||0).toLocaleString('en-KE')+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No bookings yet.</td></tr>';
+ document.getElementById('aCommission').textContent='KSh '+(revenue*.15).toLocaleString('en-KE',{maximumFractionDigits:2});
+ document.getElementById('aPending').textContent=Number(summary.pending_payments||0).toLocaleString('en-KE');
+ document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>'<tr><td>'+escapeHtml(x.pickup_location)+'</td><td>'+escapeHtml(x.destination)+'</td><td>'+escapeHtml(x.service_type||'ride')+'</td><td>KSh '+Number(x.fare||0).toLocaleString('en-KE')+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No bookings yet.</td></tr>';
  document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td>'+escapeHtml(String(x.id).slice(0,8))+'…</td><td>'+escapeHtml(x.motorcycle_model||'—')+'</td><td>'+escapeHtml(x.motorcycle_plate||'—')+'</td><td>'+(x.is_online?'Yes':'No')+'</td><td>'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
  document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td>'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td>'+escapeHtml(x.method||'—')+'</td><td>KSh '+Number(x.amount||0).toLocaleString('en-KE')+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
+ msg.textContent='Administrator access verified for '+(user.email||'your account')+'. Dashboard updated just now.';
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 setInterval(()=>{const x=document.getElementById('riderPin');if(x){x.style.left=(45+Math.random()*16)+'%';x.style.top=(38+Math.random()*18)+'%'}},1800);
