@@ -477,8 +477,7 @@ async function loadRiderProfile(){
  document.getElementById('acceptTripBtn').classList.toggle('hidden',!!activeRide);
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=!!activeRide;onlineBtn.textContent=activeRide?'Busy — trip in progress':(online?'Go offline':'Go online');}
  if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';}
- const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
- const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
+ const msg=document.getElementById('onlineMsg'); if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
 }
 async function toggleOnline(btn){
  const {data:{user}}=await supabaseClient.auth.getUser();
