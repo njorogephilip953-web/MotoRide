@@ -89,7 +89,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
   <div class="sectionHead"><h2>Book a motorcycle</h2><p class="muted">Enter the trip details and get an estimated fare.</p></div>
   <div class="booking">
    <div class="card">
-    <div class="field"><label>Pickup location</label><input id="pickup" placeholder="e.g. Westlands"></div>
+    <div class="field"><label>Pickup location</label><input id="pickup" placeholder="e.g. Westlands"><button class="btn light" type="button" style="margin-top:8px" onclick="capturePickupLocation()">Use my current GPS location</button><small id="pickupGpsMsg" class="muted">Allow location access so MotoRide can match you with nearby riders.</small></div>
     <div class="field"><label>Destination</label><input id="dest" placeholder="e.g. Nairobi CBD"></div>
     <div class="field"><label>Service</label>
       <select id="service"><option value="ride">Motorcycle Ride</option><option value="parcel">Parcel Delivery</option><option value="express">Express Delivery</option></select>
@@ -210,6 +210,11 @@ let online=false;
 let authMode='signup';
 let authRole='customer';
 let currentRideId=localStorage.getItem('motoride_last_ride')||null;
+let customerPickupCoords=null;
+let riderGeoWatchId=null;
+let riderRealtimeChannel=null;
+let rideRealtimeChannel=null;
+let lastRiderLocationWrite=0;
 
 function go(id){
  document.querySelectorAll('main,section[id]').forEach(x=>x.classList.add('hidden'));
@@ -238,14 +243,27 @@ async function submitAuth(){
  if(!e||p.length<6){box.className='notice error';box.textContent='Enter a valid email and a password of at least 6 characters.';return}
  box.className='notice';box.textContent=authMode==='signup'?'Creating your account…':'Signing you in…';
  let result;
- if(authMode==='signup') result=await supabaseClient.auth.signUp({email:e,password:p,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+ if(authMode==='signup') {
+   const riderData=authRole==='rider'?{
+     role:'rider',
+     full_name:document.getElementById('authRiderName').value.trim(),
+     phone:document.getElementById('authRiderPhone').value.trim(),
+     motorcycle_model:document.getElementById('authRiderModel').value.trim(),
+     motorcycle_plate:document.getElementById('authRiderPlate').value.trim(),
+     identification_number:document.getElementById('authRiderId').value.trim()
+   }:{role:'customer'};
+   result=await supabaseClient.auth.signUp({email:e,password:p,options:{
+     emailRedirectTo:window.location.origin+window.location.pathname,
+     data:riderData
+   }});
+ }
  else result=await supabaseClient.auth.signInWithPassword({email:e,password:p});
  const {data,error}=result;
  if(error){box.className='notice error';box.textContent=error.message;return}
  if(authMode==='signup' && !data.session){box.className='notice';box.textContent=authRole==='rider'?'Rider account created. Check your email to confirm it, then return and log in.':'Account created. Check your email to confirm the account, then return here and log in.';return}
  if(authRole==='rider'){
    const u=data.user;
-   const payload={id:u.id,motorcycle_model:document.getElementById('authRiderModel').value.trim()||null,motorcycle_plate:document.getElementById('authRiderPlate').value.trim()||null,id_number:document.getElementById('authRiderId').value.trim()||null,is_online:false,is_available:true};
+   const payload={id:u.id,motorcycle_model:document.getElementById('authRiderModel').value.trim()||null,motorcycle_plate:document.getElementById('authRiderPlate').value.trim()||null,identification_number:document.getElementById('authRiderId').value.trim()||null,is_online:false,is_available:true};
    const {error:re}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
    if(re){box.className='notice error';box.textContent='Account signed in, but rider profile could not be saved: '+re.message;return}
    box.className='notice';box.textContent='Rider account ready. Open Rider and go online when you are ready.';
@@ -260,6 +278,21 @@ async function showAccountState(){
 supabaseClient.auth.onAuthStateChange((_event,session)=>{showAccountState();if(session){loadRiderProfile();}});
 showAccountState();
 
+function getBrowserPosition(){
+ return new Promise((resolve,reject)=>{
+  if(!navigator.geolocation){reject(new Error('This browser does not support GPS location.'));return}
+  navigator.geolocation.getCurrentPosition(resolve,error=>reject(new Error(error.message||'Could not get your location.')),{enableHighAccuracy:true,timeout:20000,maximumAge:5000});
+ });
+}
+async function capturePickupLocation(){
+ const msg=document.getElementById('pickupGpsMsg');msg.textContent='Getting your location…';
+ try{
+  const pos=await getBrowserPosition();
+  customerPickupCoords={latitude:pos.coords.latitude,longitude:pos.coords.longitude};
+  document.getElementById('pickup').value='My current location';
+  msg.textContent='GPS location ready. Nearby rider matching is enabled.';msg.className='notice';
+ }catch(error){customerPickupCoords=null;msg.textContent='Location not available: '+error.message;msg.className='muted'}
+}
 function estimateFare(){
  const type=document.getElementById('service').value;
  const base={ride:150,parcel:250,express:350}[type]||150;
@@ -277,7 +310,8 @@ async function estimateAndRequest(){
  const payment=document.getElementById('pay').value;
  const fare=estimateFare();
  msg.className='notice';msg.textContent='Saving your booking…';
- const {data,error}=await supabaseClient.from('rides').insert({customer_id:user.id,pickup_location:p,destination:d,service_type:service,payment_method:payment,fare,status:'requested'}).select().single();
+ if(!customerPickupCoords){msg.className='notice error';msg.textContent='For live nearby-rider matching, tap “Use my current GPS location” and allow location access.';return}
+ const {data,error}=await supabaseClient.from('rides').insert({customer_id:user.id,pickup_location:p,destination:d,pickup_latitude:customerPickupCoords.latitude,pickup_longitude:customerPickupCoords.longitude,service_type:service,payment_method:payment,fare,status:'requested'}).select().single();
  if(error){msg.className='notice error';msg.textContent='Could not create the booking: '+error.message;return}
  currentRideId=data.id;
  localStorage.setItem('motoride_last_ride',data.id);
@@ -301,6 +335,16 @@ async function loadMyBookings(){
 let rideTimer=null;
 function startRideWatcher(id){
  if(rideTimer)clearInterval(rideTimer);
+ if(rideRealtimeChannel){supabaseClient.removeChannel(rideRealtimeChannel);rideRealtimeChannel=null}
+ rideRealtimeChannel=supabaseClient.channel('customer-ride-'+id)
+  .on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides',filter:'id=eq.'+id},()=>{
+   const box=document.getElementById('bookmsg');
+   supabaseClient.from('rides').select('status').eq('id',id).maybeSingle().then(({data})=>{
+    if(data?.status==='accepted'){document.getElementById('riderName').textContent='Rider assigned';document.getElementById('eta').textContent='Rider accepted';box.className='notice';box.textContent='A rider has accepted your booking.'}
+    if(data?.status==='completed'){document.getElementById('riderName').textContent='Trip completed';document.getElementById('eta').textContent='—';box.className='notice';box.textContent='Your MotoRide trip is complete.'}
+    if(data?.status==='cancelled'){document.getElementById('riderName').textContent='Booking cancelled';box.className='notice error';box.textContent='This booking was cancelled.'}
+   });
+  }).subscribe();
  const check=async()=>{
   const {data,error}=await supabaseClient.from('rides').select('status,rider_id,accepted_at,completed_at').eq('id',id).maybeSingle();
   if(error||!data)return;
@@ -326,31 +370,72 @@ async function loadRiderProfile(){
  if(!data)return;
  document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
  online=!!data.is_online;
+ if(online)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
  const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
  const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=online?'Online — accepting trips':'Offline';
 }
 async function toggleOnline(btn){
  const {data:{user}}=await supabaseClient.auth.getUser();
- if(!user){document.getElementById('onlineMsg').className='notice error';document.getElementById('onlineMsg').textContent='Please sign in as a rider first.';openAuth('login','rider');return}
+ const m=document.getElementById('onlineMsg');
+ if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
  await saveRiderProfile();
  const next=!online;
- const {error}=await supabaseClient.from('riders').update({is_online:next,is_available:next}).eq('id',user.id);
- const m=document.getElementById('onlineMsg');
- if(error){m.className='notice error';m.textContent=error.message;return}
- online=next;btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';m.className='notice';m.textContent=online?'Online — accepting trips':'Offline';
+ if(next){
+  let pos;
+  try{pos=await getBrowserPosition()}catch(error){m.className='notice error';m.textContent='GPS is required before going online: '+error.message;return}
+  const {error}=await supabaseClient.from('riders').update({
+   is_online:true,is_available:true,current_latitude:pos.coords.latitude,
+   current_longitude:pos.coords.longitude,location_updated_at:new Date().toISOString()
+  }).eq('id',user.id);
+  if(error){m.className='notice error';m.textContent=error.message;return}
+  online=true;startRiderLocationTracking(user.id);
+ }else{
+  const {error}=await supabaseClient.from('riders').update({is_online:false,is_available:true}).eq('id',user.id);
+  if(error){m.className='notice error';m.textContent=error.message;return}
+  online=false;stopRiderLocationTracking();
+ }
+ btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';
+ m.className='notice';m.textContent=online?'Online — GPS active, searching for nearby trips':'Offline';
  if(online)loadIncomingTrip();
 }
 let riderTimer=null;
 async function loadIncomingTrip(){
- const {data:{user}}=await supabaseClient.auth.getUser(); if(!user||!online)return;
- const {data:ride,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,service_type').eq('status','requested').is('rider_id',null).order('created_at',{ascending:true}).limit(1).maybeSingle();
- if(error)return;
- document.getElementById('rpick').textContent=ride?ride.pickup_location:'No active trip';
+ const {data:{user}}=await supabaseClient.auth.getUser();if(!user||!online)return;
+ const {data,error}=await supabaseClient.rpc('get_nearest_requested_ride');
+ if(error){document.getElementById('riderMsg').className='notice error';document.getElementById('riderMsg').textContent='Matching error: '+error.message;return}
+ const ride=Array.isArray(data)?data[0]:data;
+ document.getElementById('rpick').textContent=ride?ride.pickup_location:'No nearby trip yet';
  document.getElementById('rdest').textContent=ride?ride.destination:'—';
  document.getElementById('rfare').textContent=ride?'KSh '+Number(ride.fare||0):'KSh —';
- window.currentIncomingRide=ride?ride.id:null;
+ window.currentIncomingRide=ride?ride.ride_id:null;
+ if(ride)document.getElementById('riderMsg').textContent='Nearest request: '+Number(ride.distance_km||0).toFixed(2)+' km away.';
 }
-function startRiderWatcher(){if(riderTimer)clearInterval(riderTimer);riderTimer=setInterval(loadIncomingTrip,5000);loadIncomingTrip()}
+function startRiderLocationTracking(userId){
+ stopRiderLocationTracking();
+ if(!navigator.geolocation)return;
+ riderGeoWatchId=navigator.geolocation.watchPosition(async pos=>{
+  if(Date.now()-lastRiderLocationWrite<15000)return;
+  lastRiderLocationWrite=Date.now();
+  const {error}=await supabaseClient.from('riders').update({
+   current_latitude:pos.coords.latitude,current_longitude:pos.coords.longitude,
+   location_updated_at:new Date().toISOString()
+  }).eq('id',userId);
+  if(error){const m=document.getElementById('onlineMsg');m.className='notice error';m.textContent='GPS update failed: '+error.message}
+ },error=>{
+  const m=document.getElementById('onlineMsg');m.className='notice error';m.textContent='GPS tracking stopped: '+error.message;
+ },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+}
+function stopRiderLocationTracking(){
+ if(riderGeoWatchId!==null&&navigator.geolocation){navigator.geolocation.clearWatch(riderGeoWatchId);riderGeoWatchId=null}
+}
+function startRiderWatcher(){
+ if(riderTimer)clearInterval(riderTimer);
+ if(riderRealtimeChannel){supabaseClient.removeChannel(riderRealtimeChannel);riderRealtimeChannel=null}
+ riderRealtimeChannel=supabaseClient.channel('rider-open-requests')
+  .on('postgres_changes',{event:'*',schema:'public',table:'rides'},()=>loadIncomingTrip())
+  .subscribe();
+ riderTimer=setInterval(loadIncomingTrip,15000);loadIncomingTrip();
+}
 async function acceptTrip(){
  const m=document.getElementById('riderMsg');
  const {data:{user}}=await supabaseClient.auth.getUser();
