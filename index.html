@@ -37,7 +37,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <button onclick="go('book')">Book</button>
     <button onclick="go('rider')">Rider</button>
     <button onclick="go('business')">Business</button>
-    <button class="pill" onclick="openAuth()">Login / Sign up</button>
+    <button class="pill" onclick="handleAccountButton()">Login / Sign up</button>
   </nav>
 </header>
 
@@ -270,6 +270,19 @@ async function submitAuth(){
    box.className='notice';box.textContent='Rider account ready. Open Rider and go online when you are ready.';
  } else {box.className='notice';box.textContent='You are signed in. You can now book a ride.';}
  setTimeout(closeAuth,900);
+}
+async function handleAccountButton(){
+ const {data:{user},error}=await supabaseClient.auth.getUser();
+ if(error){openAuth('login');return}
+ if(!user){openAuth('login');return}
+ const {error:signOutError}=await supabaseClient.auth.signOut();
+ if(signOutError){
+  const button=document.querySelector('header nav .pill');
+  if(button)button.textContent='Log out failed';
+  return;
+ }
+ await showAccountState();
+ go('home');
 }
 async function showAccountState(){
  const {data:{user}}=await supabaseClient.auth.getUser();
