@@ -251,7 +251,8 @@ function go(id){
  const el=document.getElementById(id)||document.getElementById('home');
  el.classList.remove('hidden');
  window.scrollTo({top:0,behavior:'smooth'});
- if(id==='admin')renderAdmin();
+ if(id==='admin'){renderAdmin();startAdminAutoRefresh();}
+ if(id!=='admin'&&adminRefreshTimer){clearInterval(adminRefreshTimer);adminRefreshTimer=null;}
  if(id==='book')loadMyBookings();
  if(id==='rider'){loadRiderProfile();startRiderWatcher();}
 }
@@ -448,16 +449,21 @@ async function saveRiderProfile(){
  if(!nationalId){m.className='notice error';m.textContent='National ID number is required. Please enter it before saving your rider profile or going online.';document.getElementById('ridnumber').focus();return false}
  const fullName=document.getElementById('rname').value.trim();
  const phone=document.getElementById('rphone').value.trim();
+ if(!fullName||!phone){m.className='notice error';m.textContent='Please enter your full name and phone number before saving your rider profile.';return false}
  const {error:profileError}=await supabaseClient.from('profiles').upsert({id:user.id,full_name:fullName,phone,role:'rider'},{onConflict:'id'});
- if(profileError){m.className='notice error';m.textContent='Could not save name and phone: '+profileError.message;return}
- const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,identification_number:document.getElementById('ridnumber').value.trim()||null};
+ if(profileError){m.className='notice error';m.textContent='Could not save name and phone: '+profileError.message;return false}
+ const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,identification_number:nationalId};
  const {error}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
  m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved, including the required National ID number.';
  return !error;
 }
 async function loadRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
- const {data}=await supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available,verification_status,verification_note').eq('id',user.id).maybeSingle();
+ const [{data},{data:profile}]=await Promise.all([
+  supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available,verification_status,verification_note').eq('id',user.id).maybeSingle(),
+  supabaseClient.from('profiles').select('full_name,phone').eq('id',user.id).maybeSingle()
+ ]);
+ if(profile){document.getElementById('rname').value=profile.full_name||'';document.getElementById('rphone').value=profile.phone||'';}
  if(!data)return;
  document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
  online=!!data.is_online;
@@ -594,7 +600,15 @@ async function renderAdmin(){
   return '<tr><td data-label="Rider profile"><b>'+escapeHtml(x.full_name||'Name missing')+'</b><br><a href="tel:'+escapeHtml(x.phone||'')+'">'+escapeHtml(x.phone||'Phone missing')+'</a><br><small>'+escapeHtml(String(x.id))+'</small></td><td data-label="National ID">'+escapeHtml(x.identification_number||'MISSING')+'</td><td data-label="Motorcycle">'+escapeHtml(x.motorcycle_model||'Missing')+'</td><td data-label="Registration">'+escapeHtml(x.motorcycle_plate||'Missing')+'</td><td data-label="Verification"><b>'+escapeHtml(status.toUpperCase())+'</b>'+(x.verification_note?'<br>'+escapeHtml(x.verification_note):'')+'</td><td data-label="Online">'+(x.is_online?'Yes':'No')+' / '+(x.is_available?'Available':'Busy')+'</td><td data-label="Admin review"><div class="adminRiderActions">'+actions+'</div></td></tr>';
  }).join(''):'<tr><td colspan="7">No riders registered yet.</td></tr>';
  document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Method">'+escapeHtml(x.method||'—')+'</td><td data-label="Amount">'+money(x.amount)+'</td><td data-label="Status">'+escapeHtml(x.status||'—')+'</td><td data-label="M-Pesa receipt">'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
- msg.textContent='Administrator access verified for '+(user.email||'your account')+'. Dashboard updated just now.';
+ msg.textContent='Live dashboard • Last updated '+new Date().toLocaleTimeString('en-KE')+'.';
+}
+let adminRefreshTimer=null;
+function startAdminAutoRefresh(){
+ if(adminRefreshTimer)clearInterval(adminRefreshTimer);
+ adminRefreshTimer=setInterval(()=>{
+  const section=document.getElementById('admin');
+  if(section&&!section.classList.contains('hidden'))renderAdmin();
+ },15000);
 }
 async function adminReviewRider(riderId,decision){
  const note=decision==='rejected'?window.prompt('Enter the reason for rejecting this rider profile:'):null;
