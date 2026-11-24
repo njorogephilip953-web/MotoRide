@@ -327,7 +327,20 @@ async function estimateAndRequest(){
  if(payment==='M-Pesa'){
   msg.className='notice';msg.textContent='Booking saved. Sending M-Pesa payment prompt…';
   const {data:paymentResult,error:paymentError}=await supabaseClient.functions.invoke('mpesa-stk-push',{body:{ride_id:data.id,phone_number:mpesaPhone}});
-  if(paymentError||paymentResult?.error){msg.className='notice error';msg.textContent='Booking saved, but M-Pesa prompt failed: '+(paymentResult?.error||paymentError.message);return}
+  if(paymentError||paymentResult?.error){
+   let paymentFailure=paymentResult?.error||paymentError?.message||'Unknown payment error.';
+   if(paymentError?.context&&typeof paymentError.context.clone==='function'){
+    try{
+     const failureBody=await paymentError.context.clone().json();
+     paymentFailure=failureBody.error||paymentFailure;
+     if(Array.isArray(failureBody.missing)&&failureBody.missing.length)paymentFailure+=' Missing Edge Function secrets: '+failureBody.missing.join(', ')+'.';
+     else if(failureBody.detail)paymentFailure+=' '+failureBody.detail;
+    }catch{}
+   }
+   msg.className='notice error';
+   msg.textContent='Booking saved, but M-Pesa prompt failed: '+paymentFailure;
+   return;
+  }
   msg.className='notice';msg.textContent='Booking saved. '+(paymentResult.message||'M-Pesa prompt sent. Check your phone and enter your M-Pesa PIN.');
  }
  document.getElementById('riderName').textContent='Searching for a rider…';
