@@ -332,7 +332,7 @@ async function estimateAndRequest(){
  }
  document.getElementById('riderName').textContent='Searching for a rider…';
  document.getElementById('eta').textContent='3–7 min';
- msg.className='notice';msg.textContent='Booking confirmed. Your request is now visible to the MotoRide system.';
+ msg.className='notice';msg.textContent=payment==='M-Pesa'?'M-Pesa prompt sent. Complete the payment on your phone. Rider matching starts after payment is confirmed.':'Booking confirmed. Your request is now visible to the MotoRide system.';
  await loadMyBookings();
  startRideWatcher(data.id);
 }
