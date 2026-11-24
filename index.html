@@ -160,11 +160,14 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
    <div id="adminMsg" class="notice hidden" role="status"></div>
    <div class="stats">
     <div class="stat"><strong id="aTrips">—</strong>Total bookings</div>
-    <div class="stat"><strong id="aRiders">—</strong>Online riders</div>
+    <div class="stat"><strong id="aRequested">—</strong>Awaiting rider</div>
+    <div class="stat"><strong id="aAccepted">—</strong>Accepted rides</div>
+    <div class="stat"><strong id="aCompleted">—</strong>Completed rides</div>
+    <div class="stat"><strong id="aRiders">—</strong>Online and available riders</div>
     <div class="stat"><strong id="aCustomers">—</strong>Customer accounts</div>
-    <div class="stat"><strong id="aRevenue">KSh 0</strong>Revenue (latest 50 payments)</div>
-    <div class="stat"><strong id="aCommission">KSh 0</strong>Estimated 15% commission</div>
-    <div class="stat"><strong id="aPending">—</strong>Pending (latest 50 payments)</div>
+    <div class="stat"><strong id="aUnpaid">—</strong>Unpaid bookings</div>
+    <div class="stat"><strong id="aRevenue">KSh 0</strong>Total recorded paid revenue</div>
+    <div class="stat"><strong id="aPending">—</strong>Pending payments</div>
    </div>
    <div class="card" style="margin-top:18px"><h3>Recent bookings</h3><div class="tableWrap"><table><thead><tr><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Ride status</th><th>Payment</th></tr></thead><tbody id="tripTable"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></div>
    <div class="card" style="margin-top:18px"><h3>Rider operations</h3><div class="tableWrap"><table><thead><tr><th>Rider ID</th><th>Motorcycle</th><th>Plate</th><th>Online</th><th>Available</th></tr></thead><tbody id="riderTable"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></div>
@@ -537,16 +540,19 @@ async function renderAdmin(){
  const rides=data?.rides||[];
  const riders=data?.riders||[];
  const payments=data?.payments||[];
- const revenue=Number(summary.paid_revenue||0);
+ const money=n=>'KSh '+Number(n||0).toLocaleString('en-KE',{maximumFractionDigits:2});
  document.getElementById('aTrips').textContent=Number(summary.total_bookings||0).toLocaleString('en-KE');
+ document.getElementById('aRequested').textContent=Number(summary.requested_rides||0).toLocaleString('en-KE');
+ document.getElementById('aAccepted').textContent=Number(summary.accepted_rides||0).toLocaleString('en-KE');
+ document.getElementById('aCompleted').textContent=Number(summary.completed_rides||0).toLocaleString('en-KE');
  document.getElementById('aRiders').textContent=Number(summary.online_riders||0).toLocaleString('en-KE');
  document.getElementById('aCustomers').textContent=Number(summary.customers||0).toLocaleString('en-KE');
- document.getElementById('aRevenue').textContent='KSh '+revenue.toLocaleString('en-KE');
- document.getElementById('aCommission').textContent='KSh '+(revenue*.15).toLocaleString('en-KE',{maximumFractionDigits:2});
+ document.getElementById('aUnpaid').textContent=Number(summary.unpaid_bookings||0).toLocaleString('en-KE');
+ document.getElementById('aRevenue').textContent=money(summary.paid_revenue);
  document.getElementById('aPending').textContent=Number(summary.pending_payments||0).toLocaleString('en-KE');
- document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>'<tr><td>'+escapeHtml(x.pickup_location)+'</td><td>'+escapeHtml(x.destination)+'</td><td>'+escapeHtml(x.service_type||'ride')+'</td><td>KSh '+Number(x.fare||0).toLocaleString('en-KE')+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No bookings yet.</td></tr>';
+ document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>'<tr><td>'+escapeHtml(x.pickup_location)+'</td><td>'+escapeHtml(x.destination)+'</td><td>'+escapeHtml(x.service_type||'ride')+'</td><td>'+money(x.fare)+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No bookings yet.</td></tr>';
  document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td>'+escapeHtml(String(x.id).slice(0,8))+'…</td><td>'+escapeHtml(x.motorcycle_model||'—')+'</td><td>'+escapeHtml(x.motorcycle_plate||'—')+'</td><td>'+(x.is_online?'Yes':'No')+'</td><td>'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
- document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td>'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td>'+escapeHtml(x.method||'—')+'</td><td>KSh '+Number(x.amount||0).toLocaleString('en-KE')+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
+ document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td>'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td>'+escapeHtml(x.method||'—')+'</td><td>'+money(x.amount)+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
  msg.textContent='Administrator access verified for '+(user.email||'your account')+'. Dashboard updated just now.';
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
