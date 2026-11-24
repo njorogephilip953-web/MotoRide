@@ -147,7 +147,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="field"><label>Motorcycle registration</label><input id="reg" placeholder="KXX 123X"></div>
     <div class="field"><label>National ID number</label><input id="ridnumber" placeholder="National ID number" required></div>
     <button class="btn light" onclick="saveRiderProfile()">Save rider profile</button>
-    <button class="btn green" onclick="toggleOnline(this)">Go online</button>
+    <button class="btn green" id="toggleOnlineBtn" onclick="toggleOnline(this)">Go online</button>
     <div id="onlineMsg" class="notice">Offline</div>
    </div>
    <div class="card">
@@ -473,6 +473,7 @@ async function loadRiderProfile(){
  window.currentActiveRide=activeRide?.id||null;
  document.getElementById('completeTripBtn').classList.toggle('hidden',!activeRide);
  document.getElementById('acceptTripBtn').classList.toggle('hidden',!!activeRide);
+ const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=!!activeRide;onlineBtn.textContent=activeRide?'Busy — trip in progress':(online?'Go offline':'Go online');}
  if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';}
  const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
  const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
@@ -555,6 +556,7 @@ async function acceptTrip(){
  window.currentActiveRide=data.id;window.currentIncomingRide=null;
  document.getElementById('rpick').textContent=data.pickup_location;document.getElementById('rdest').textContent=data.destination;document.getElementById('rfare').textContent='KSh '+Number(data.fare||0);
  document.getElementById('completeTripBtn').classList.remove('hidden');document.getElementById('acceptTripBtn').classList.add('hidden');
+ const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=true;onlineBtn.textContent='Busy — trip in progress';}
  online=true;document.getElementById('onlineMsg').textContent='Trip in progress — GPS active, unavailable for new bookings';
  m.className='notice';m.textContent='Trip accepted. You are now unavailable for other customers. GPS tracking remains active for this customer.';
  loadMyBookings();
@@ -567,6 +569,7 @@ async function completeTrip(){
  if(error){m.className='notice error';m.textContent=error.message;return}
  window.currentActiveRide=null;
  document.getElementById('completeTripBtn').classList.add('hidden');document.getElementById('acceptTripBtn').classList.remove('hidden');
+ const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=false;onlineBtn.textContent=online?'Go offline':'Go online';}
  document.getElementById('rpick').textContent='No active trip';document.getElementById('rdest').textContent='—';document.getElementById('rfare').textContent='KSh —';
  m.className='notice';m.textContent='Trip completed. You are available for the next booking.';
  document.getElementById('onlineMsg').textContent=online?'Online — GPS active, searching for nearby trips':'Offline';
