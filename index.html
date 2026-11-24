@@ -323,37 +323,50 @@ async function estimateAndRequest(){
 }
 
 async function loadMyBookings(){
- const box=document.getElementById('bookmsg');
  const {data:{user}}=await supabaseClient.auth.getUser();
  if(!user)return;
  const {data,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,service_type,payment_method,fare,status,created_at').eq('customer_id',user.id).order('created_at',{ascending:false}).limit(10);
  if(error)return;
  const list=document.getElementById('myBookings');
- if(list){list.innerHTML=data.length?data.map(r=>`<div class="card" style="margin-top:10px"><b>${escapeHtml(r.pickup_location)} → ${escapeHtml(r.destination)}</b><div class="muted" style="margin-top:5px">${escapeHtml(r.service_type||'ride')} • ${escapeHtml(r.payment_method||'M-Pesa')} • KSh ${Number(r.fare||0)} • <b>${escapeHtml(r.status)}</b></div></div>`).join(''):'<p class="muted">No bookings yet.</p>'}
+ if(!list)return;
+ const cards=await Promise.all((data||[]).map(async r=>{
+  let riderInfo='';
+  if(r.status==='accepted'||r.status==='completed'){
+   const {data:details}=await supabaseClient.rpc('get_customer_ride_details',{p_ride_id:r.id});
+   const d=Array.isArray(details)?details[0]:details;
+   if(d) riderInfo=`<div class="muted" style="margin-top:7px"><b>Rider:</b> ${escapeHtml(d.rider_name||'Assigned rider')} • ${escapeHtml(d.rider_phone||'Phone unavailable')}<br><b>Motorcycle:</b> ${escapeHtml(d.motorcycle_model||'Not provided')} • ${escapeHtml(d.motorcycle_plate||'Plate not provided')}</div>`;
+  }
+  return `<div class="card" style="margin-top:10px"><b>${escapeHtml(r.pickup_location)} → ${escapeHtml(r.destination)}</b><div class="muted" style="margin-top:5px">${escapeHtml(r.service_type||'ride')} • ${escapeHtml(r.payment_method||'M-Pesa')} • KSh ${Number(r.fare||0)} • <b>${escapeHtml(r.status)}</b></div>${riderInfo}</div>`;
+ }));
+ list.innerHTML=cards.length?cards.join(''):'<p class="muted">No bookings yet.</p>';
 }
 
 let rideTimer=null;
+async function refreshCustomerRide(id){
+ const {data,error}=await supabaseClient.from('rides').select('status').eq('id',id).maybeSingle();
+ if(error||!data)return;
+ const name=document.getElementById('riderName'),eta=document.getElementById('eta'),msg=document.getElementById('bookmsg');
+ if(data.status==='accepted'||data.status==='completed'){
+  const {data:details}=await supabaseClient.rpc('get_customer_ride_details',{p_ride_id:id});
+  const d=Array.isArray(details)?details[0]:details;
+  name.textContent=d?.rider_name||'Rider assigned';
+  eta.textContent=data.status==='completed'?'Trip completed':'Rider accepted';
+  msg.className='notice';msg.textContent=data.status==='completed'?'Your MotoRide trip is complete.':'A rider has accepted your booking.';
+ }else if(data.status==='cancelled'){
+  name.textContent='Booking cancelled';eta.textContent='—';msg.className='notice error';msg.textContent='This booking was cancelled.';
+ }else{
+  name.textContent='Searching for a rider…';eta.textContent='3–7 min';
+ }
+ await loadMyBookings();
+}
 function startRideWatcher(id){
  if(rideTimer)clearInterval(rideTimer);
  if(rideRealtimeChannel){supabaseClient.removeChannel(rideRealtimeChannel);rideRealtimeChannel=null}
  rideRealtimeChannel=supabaseClient.channel('customer-ride-'+id)
-  .on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides',filter:'id=eq.'+id},()=>{
-   const box=document.getElementById('bookmsg');
-   supabaseClient.from('rides').select('status').eq('id',id).maybeSingle().then(({data})=>{
-    if(data?.status==='accepted'){document.getElementById('riderName').textContent='Rider assigned';document.getElementById('eta').textContent='Rider accepted';box.className='notice';box.textContent='A rider has accepted your booking.'}
-    if(data?.status==='completed'){document.getElementById('riderName').textContent='Trip completed';document.getElementById('eta').textContent='—';box.className='notice';box.textContent='Your MotoRide trip is complete.'}
-    if(data?.status==='cancelled'){document.getElementById('riderName').textContent='Booking cancelled';box.className='notice error';box.textContent='This booking was cancelled.'}
-   });
-  }).subscribe();
- const check=async()=>{
-  const {data,error}=await supabaseClient.from('rides').select('status,rider_id,accepted_at,completed_at').eq('id',id).maybeSingle();
-  if(error||!data)return;
-  const msg=document.getElementById('bookmsg');
-  if(data.status==='accepted'){document.getElementById('riderName').textContent='Rider assigned';document.getElementById('eta').textContent='Rider accepted';msg.className='notice';msg.textContent='A rider has accepted your booking.';}
-  else if(data.status==='completed'){document.getElementById('riderName').textContent='Trip completed';document.getElementById('eta').textContent='—';msg.className='notice';msg.textContent='Your MotoRide trip is complete.';clearInterval(rideTimer);}
-  else if(data.status==='cancelled'){document.getElementById('riderName').textContent='Booking cancelled';document.getElementById('eta').textContent='—';msg.className='notice error';msg.textContent='This booking was cancelled.';clearInterval(rideTimer);}
- };
- check(); rideTimer=setInterval(check,5000);
+  .on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides',filter:'id=eq.'+id},()=>refreshCustomerRide(id))
+  .subscribe();
+ refreshCustomerRide(id);
+ rideTimer=setInterval(()=>refreshCustomerRide(id),5000);
 }
 
 async function saveRiderProfile(){
