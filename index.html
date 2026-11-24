@@ -22,6 +22,16 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
 .map{height:300px;border-radius:16px;background:linear-gradient(135deg,#dcfce7,#e2e8f0);position:relative;overflow:hidden;margin-top:14px}.road{position:absolute;width:140%;height:10px;background:#fff;left:-20%;top:46%;transform:rotate(-17deg);box-shadow:0 75px 0 #fff}.pin{position:absolute;font-size:31px;transition:1s}.pickupPin{left:18%;top:25%}.destPin{right:17%;bottom:18%}.riderPin{left:52%;top:43%}
 .roleGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.hidden{display:none!important}
 .tableWrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap}
+@media(max-width:640px){
+ #admin .tableWrap{overflow:visible}
+ #admin .tableWrap table,#admin .tableWrap tbody{display:block;width:100%}
+ #admin .tableWrap thead{display:none}
+ #admin .tableWrap tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:13px 0;border-bottom:1px solid var(--line)}
+ #admin .tableWrap tbody td{display:flex;flex-direction:column;gap:3px;min-width:0;padding:5px 2px;border:0;white-space:normal;overflow-wrap:anywhere;font-size:14px}
+ #admin .tableWrap tbody td:before{content:attr(data-label);font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.35px}
+ #admin .tableWrap tbody td[colspan]{display:block;grid-column:1/-1}
+ #admin .tableWrap tbody td[colspan]:before{content:none}
+}
 .modal{position:fixed;inset:0;background:#02061799;display:none;align-items:center;justify-content:center;padding:18px;z-index:50}.modal .card{width:min(460px,100%);max-height:90vh;overflow:auto}.close{float:right;border:0;background:#f1f5f9;border-radius:50%;width:36px;height:36px;font-size:20px}
 footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:25px}.footerTitle{color:#fff;font-weight:900;font-size:22px}
 @media(max-width:800px){header{padding:10px 3%}.logo{font-size:19px;letter-spacing:-.7px}nav{gap:4px}nav button:not(.pill){display:none}nav button[onclick="go('admin')"]{display:inline-flex;padding:8px 7px;font-size:12px}.pill{font-size:12px;padding:9px 10px}.heroGrid,.booking,.roleGrid,.footerGrid{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.hero{padding-top:42px}.hero h1{letter-spacing:-2px}}
@@ -550,9 +560,9 @@ async function renderAdmin(){
  document.getElementById('aUnpaid').textContent=Number(summary.unpaid_bookings||0).toLocaleString('en-KE');
  document.getElementById('aRevenue').textContent=money(summary.paid_revenue);
  document.getElementById('aPending').textContent=Number(summary.pending_payments||0).toLocaleString('en-KE');
- document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>'<tr><td>'+escapeHtml(x.pickup_location)+'</td><td>'+escapeHtml(x.destination)+'</td><td>'+escapeHtml(x.service_type||'ride')+'</td><td>'+money(x.fare)+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No bookings yet.</td></tr>';
- document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td>'+escapeHtml(String(x.id).slice(0,8))+'…</td><td>'+escapeHtml(x.motorcycle_model||'—')+'</td><td>'+escapeHtml(x.motorcycle_plate||'—')+'</td><td>'+(x.is_online?'Yes':'No')+'</td><td>'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
- document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td>'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td>'+escapeHtml(x.method||'—')+'</td><td>'+money(x.amount)+'</td><td>'+escapeHtml(x.status||'—')+'</td><td>'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
+ document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>'<tr><td data-label="Pickup">'+escapeHtml(x.pickup_location)+'</td><td data-label="Destination">'+escapeHtml(x.destination)+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+escapeHtml(x.status||'—')+'</td><td data-label="Payment">'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No bookings yet.</td></tr>';
+ document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td data-label="Rider ID">'+escapeHtml(String(x.id).slice(0,8))+'…</td><td data-label="Motorcycle">'+escapeHtml(x.motorcycle_model||'—')+'</td><td data-label="Plate">'+escapeHtml(x.motorcycle_plate||'—')+'</td><td data-label="Online">'+(x.is_online?'Yes':'No')+'</td><td data-label="Available">'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
+ document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Method">'+escapeHtml(x.method||'—')+'</td><td data-label="Amount">'+money(x.amount)+'</td><td data-label="Status">'+escapeHtml(x.status||'—')+'</td><td data-label="M-Pesa receipt">'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
  msg.textContent='Administrator access verified for '+(user.email||'your account')+'. Dashboard updated just now.';
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
