@@ -179,7 +179,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="stat"><strong id="aRevenue">KSh 0</strong>Total recorded paid revenue</div>
     <div class="stat"><strong id="aPending">—</strong>Pending payments</div>
    </div>
-   <div class="card" style="margin-top:18px"><h3>Recent bookings</h3><div class="tableWrap"><table><thead><tr><th>Booking ref</th><th>Date</th><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Ride status</th><th>Payment</th></tr></thead><tbody id="tripTable"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></div>
+   <div class="card" style="margin-top:18px"><h3>Recent bookings</h3><div class="tableWrap"><table><thead><tr><th>Booking ref</th><th>Date</th><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Ride status</th><th>Payment</th><th>Admin action</th></tr></thead><tbody id="tripTable"><tr><td colspan="9">Loading…</td></tr></tbody></table></div></div>
    <div class="card" style="margin-top:18px"><h3>Rider operations</h3><div class="tableWrap"><table><thead><tr><th>Rider ID</th><th>Motorcycle</th><th>Plate</th><th>Online</th><th>Available</th></tr></thead><tbody id="riderTable"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></div>
    <div class="card" style="margin-top:18px"><h3>Recent payments</h3><div class="tableWrap"><table><thead><tr><th>Date</th><th>Method</th><th>Amount</th><th>Status</th><th>M-Pesa receipt</th></tr></thead><tbody id="paymentTable"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></div>
   </div>
@@ -560,10 +560,33 @@ async function renderAdmin(){
  document.getElementById('aUnpaid').textContent=Number(summary.unpaid_bookings||0).toLocaleString('en-KE');
  document.getElementById('aRevenue').textContent=money(summary.paid_revenue);
  document.getElementById('aPending').textContent=Number(summary.pending_payments||0).toLocaleString('en-KE');
- document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>'<tr><td data-label="Booking ref">'+escapeHtml(String(x.id||'').slice(0,8).toUpperCase())+'</td><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location)+'</td><td data-label="Destination">'+escapeHtml(x.destination)+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+escapeHtml(x.status||'—')+'</td><td data-label="Payment">'+escapeHtml(x.payment_status||'—')+'</td></tr>').join(''):'<tr><td colspan="8">No bookings yet.</td></tr>';
+ document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>{
+  const actions=[];
+  const canAssign=x.status==='requested'&&!x.rider_id&&(!(String(x.payment_method||'').toLowerCase().replace(/-/g,'' )==='mpesa')||x.payment_status==='paid');
+  if(canAssign) riders.filter(r=>r.is_online&&r.is_available).forEach(r=>actions.push({value:'rider:'+r.id,label:'Assign: '+(r.full_name||r.motorcycle_plate||'Rider')}));
+  if(x.status==='requested') actions.push({value:'status:cancelled',label:'Cancel booking'});
+  if(x.status==='accepted') {actions.push({value:'status:in_progress',label:'Start ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
+  if(x.status==='in_progress') {actions.push({value:'status:completed',label:'Complete ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
+  const actionControl=actions.length?'<div class="adminAction"><select id="rideAction_'+x.id+'" aria-label="Action for booking '+String(x.id).slice(0,8)+'"><option value="">Choose action</option>'+actions.map(a=>'<option value="'+escapeHtml(a.value)+'">'+escapeHtml(a.label)+'</option>').join('')+'</select><button class="btn green" type="button" onclick="adminManageRide(\''+x.id+'\')">Apply</button></div>':'<span class="muted">No actions</span>';
+  return '<tr><td data-label="Booking ref">'+escapeHtml(String(x.id||'').slice(0,8).toUpperCase())+'</td><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location)+'</td><td data-label="Destination">'+escapeHtml(x.destination)+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+escapeHtml(x.status||'—')+'</td><td data-label="Payment">'+escapeHtml(x.payment_status||'—')+'</td><td data-label="Admin action">'+actionControl+'</td></tr>';
+ }).join(''):'<tr><td colspan="9">No bookings yet.</td></tr>';
  document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td data-label="Rider ID">'+escapeHtml(String(x.id).slice(0,8))+'…</td><td data-label="Motorcycle">'+escapeHtml(x.motorcycle_model||'—')+'</td><td data-label="Plate">'+escapeHtml(x.motorcycle_plate||'—')+'</td><td data-label="Online">'+(x.is_online?'Yes':'No')+'</td><td data-label="Available">'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
  document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Method">'+escapeHtml(x.method||'—')+'</td><td data-label="Amount">'+money(x.amount)+'</td><td data-label="Status">'+escapeHtml(x.status||'—')+'</td><td data-label="M-Pesa receipt">'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
  msg.textContent='Administrator access verified for '+(user.email||'your account')+'. Dashboard updated just now.';
+}
+async function adminManageRide(rideId){
+ const select=document.getElementById('rideAction_'+rideId);
+ const choice=select?.value||'';
+ const msg=document.getElementById('adminMsg');
+ if(!choice){msg.className='notice error';msg.textContent='Choose an action for this booking first.';return;}
+ if(choice==='status:cancelled'&&!window.confirm('Cancel this booking? This action changes the ride status.'))return;
+ const [kind,value]=choice.split(':');
+ const args={p_ride_id:rideId,p_new_status:kind==='status'?value:null,p_rider_id:kind==='rider'?value:null};
+ msg.className='notice';msg.textContent='Applying booking update…';
+ const {error}=await supabaseClient.rpc('admin_manage_motoride_ride',args);
+ if(error){msg.className='notice error';msg.textContent='Booking update failed: '+error.message;return;}
+ msg.className='notice success';msg.textContent='Booking updated successfully. Refreshing dashboard…';
+ await renderAdmin();
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 setInterval(()=>{const x=document.getElementById('riderPin');if(x){x.style.left=(45+Math.random()*16)+'%';x.style.top=(38+Math.random()*18)+'%'}},1800);
