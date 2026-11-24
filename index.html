@@ -23,6 +23,7 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
 .roleGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.hidden{display:none!important}
 .tableWrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap}
 .riderProfile{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;white-space:normal;min-width:260px}.riderProfile summary{cursor:pointer;font-weight:700;color:#176b3a}.riderProfileGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.riderProfileGrid>div{min-width:0}.riderProfileGrid b{display:block;color:var(--muted);font-size:12px;text-transform:uppercase}.riderProfileGrid span{display:block;overflow-wrap:anywhere;margin-top:3px}.riderProfileRow td{white-space:normal!important;background:#f8fafc}.riderProfileRow td:before{content:none!important}
+ .adminRiderActions{display:flex;gap:7px;flex-wrap:wrap;min-width:190px}.adminRiderActions .btn{padding:8px 10px;font-size:13px;white-space:nowrap}
  .adminAction{display:flex;gap:7px;align-items:center;min-width:210px}.adminAction select{min-width:0;flex:1;width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:13px}.adminAction .btn{padding:9px 12px;font-size:13px;white-space:nowrap}
 @media(max-width:640px){
  #admin .tableWrap{overflow:visible}
@@ -35,6 +36,8 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
  #admin .tableWrap tbody td[colspan]:before{content:none}
  #admin .tableWrap tbody td[data-label="Admin action"]{grid-column:1/-1}
  #admin .adminAction{min-width:0;width:100%}
+ #admin .adminRiderActions{min-width:0}
+ #admin .adminRiderActions .btn{white-space:normal}
  #admin .adminAction select{min-width:0}
  #admin .riderProfileGrid{grid-template-columns:1fr 1fr}
  #admin .riderProfile{min-width:0}
@@ -187,7 +190,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="stat"><strong id="aPending">—</strong>Pending payments</div>
    </div>
    <div class="card" style="margin-top:18px"><h3>Recent bookings</h3><div class="tableWrap"><table><thead><tr><th>Booking ref</th><th>Date</th><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Ride status</th><th>Payment</th><th>Admin action</th></tr></thead><tbody id="tripTable"><tr><td colspan="9">Loading…</td></tr></tbody></table></div></div>
-   <div class="card" style="margin-top:18px"><h3>Rider operations</h3><div class="tableWrap"><table><thead><tr><th>Rider ID</th><th>Motorcycle</th><th>Plate</th><th>Online</th><th>Available</th></tr></thead><tbody id="riderTable"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></div>
+   <div class="card" style="margin-top:18px"><h3>Rider verification & operations</h3><p class="muted">Review rider identity and motorcycle details before approval. Approved riders can go online and accept bookings.</p><div class="tableWrap"><table><thead><tr><th>Rider profile</th><th>National ID</th><th>Motorcycle</th><th>Registration</th><th>Verification</th><th>Online</th><th>Admin review</th></tr></thead><tbody id="riderTable"><tr><td colspan="7">Loading…</td></tr></tbody></table></div></div>
    <div class="card" style="margin-top:18px"><h3>Recent payments</h3><div class="tableWrap"><table><thead><tr><th>Date</th><th>Method</th><th>Amount</th><th>Status</th><th>M-Pesa receipt</th></tr></thead><tbody id="paymentTable"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></div>
   </div>
 </section>
@@ -454,13 +457,13 @@ async function saveRiderProfile(){
 }
 async function loadRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
- const {data}=await supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available').eq('id',user.id).maybeSingle();
+ const {data}=await supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available,verification_status,verification_note').eq('id',user.id).maybeSingle();
  if(!data)return;
  document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
  online=!!data.is_online;
  if(online)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
  const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
- const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=online?'Online — accepting trips':'Offline';
+ const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=data.verification_status==='approved'?(online?'Approved — online and accepting trips':'Approved — offline'):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
 }
 async function toggleOnline(btn){
  const {data:{user}}=await supabaseClient.auth.getUser();
@@ -468,6 +471,8 @@ async function toggleOnline(btn){
  if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
  const saved=await saveRiderProfile();
  if(saved===false)return;
+ const {data:verification}=await supabaseClient.from('riders').select('verification_status').eq('id',user.id).maybeSingle();
+ if(verification?.verification_status!=='approved'){m.className='notice error';m.textContent='Your rider profile is awaiting administrator approval. You cannot go online yet.';return}
  const next=!online;
  if(next){
   let pos;
@@ -583,9 +588,24 @@ async function renderAdmin(){
   const riderProfile=x.rider_id?'<details class="riderProfile"><summary>View assigned rider profile</summary><div class="riderProfileGrid"><div><b>Full name</b><span>'+escapeHtml(x.rider_name||'Not provided')+'</span></div><div><b>Phone</b><span>'+(x.rider_phone?'<a href="tel:'+escapeHtml(x.rider_phone)+'">'+escapeHtml(x.rider_phone)+'</a>':'Not provided')+'</span></div><div><b>Motorcycle</b><span>'+escapeHtml(x.rider_motorcycle||'Not provided')+'</span></div><div><b>Number plate</b><span>'+escapeHtml(x.rider_plate||'Not provided')+'</span></div><div><b>National ID number</b><span>'+(x.rider_identification_number?escapeHtml(x.rider_identification_number):'MISSING — rider must update profile')+'</span></div><div><b>Rider rating</b><span>'+(x.rider_rating==null?'Not rated':escapeHtml(String(x.rider_rating)))+'</span></div><div><b>Online / available</b><span>'+(x.rider_online?'Online':'Offline')+' / '+(x.rider_available?'Available':'On a ride or unavailable')+'</span></div><div><b>Last location update</b><span>'+(x.rider_location_updated_at?new Date(x.rider_location_updated_at).toLocaleString('en-KE'):'Not shared yet')+'</span></div><div><b>Current location</b><span>'+(x.rider_latitude!=null&&x.rider_longitude!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+encodeURIComponent(x.rider_latitude+','+x.rider_longitude)+'">View rider on map</a>':'Location unavailable')+'</span></div></div></details>':'';
   return '<tr><td data-label="Booking ref">'+escapeHtml(String(x.id||'').slice(0,8).toUpperCase())+'</td><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location)+'</td><td data-label="Destination">'+escapeHtml(x.destination)+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+escapeHtml(x.status||'—')+'</td><td data-label="Payment">'+escapeHtml(x.payment_status||'—')+'</td><td data-label="Admin action">'+actionControl+'</td></tr>'+(riderProfile?'<tr class="riderProfileRow"><td colspan="9">'+riderProfile+'</td></tr>':'');
  }).join(''):'<tr><td colspan="9">No bookings yet.</td></tr>';
- document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td data-label="Rider ID">'+escapeHtml(String(x.id).slice(0,8))+'…</td><td data-label="Motorcycle">'+escapeHtml(x.motorcycle_model||'—')+'</td><td data-label="Plate">'+escapeHtml(x.motorcycle_plate||'—')+'</td><td data-label="Online">'+(x.is_online?'Yes':'No')+'</td><td data-label="Available">'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
+ document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>{
+  const status=x.verification_status||'pending';
+  const actions=status==='approved'?'<button class="btn light" type="button" onclick="adminReviewRider(\''+x.id+'\',\'rejected\')">Suspend / reject</button>':status==='rejected'?'<button class="btn green" type="button" onclick="adminReviewRider(\''+x.id+'\',\'approved\')">Approve</button>':'<button class="btn green" type="button" onclick="adminReviewRider(\''+x.id+'\',\'approved\')">Approve rider</button><button class="btn light" type="button" onclick="adminReviewRider(\''+x.id+'\',\'rejected\')">Reject</button>';
+  return '<tr><td data-label="Rider profile"><b>'+escapeHtml(x.full_name||'Name missing')+'</b><br><a href="tel:'+escapeHtml(x.phone||'')+'">'+escapeHtml(x.phone||'Phone missing')+'</a><br><small>'+escapeHtml(String(x.id))+'</small></td><td data-label="National ID">'+escapeHtml(x.identification_number||'MISSING')+'</td><td data-label="Motorcycle">'+escapeHtml(x.motorcycle_model||'Missing')+'</td><td data-label="Registration">'+escapeHtml(x.motorcycle_plate||'Missing')+'</td><td data-label="Verification"><b>'+escapeHtml(status.toUpperCase())+'</b>'+(x.verification_note?'<br>'+escapeHtml(x.verification_note):'')+'</td><td data-label="Online">'+(x.is_online?'Yes':'No')+' / '+(x.is_available?'Available':'Busy')+'</td><td data-label="Admin review"><div class="adminRiderActions">'+actions+'</div></td></tr>';
+ }).join(''):'<tr><td colspan="7">No riders registered yet.</td></tr>';
  document.getElementById('paymentTable').innerHTML=payments.length?payments.map(x=>'<tr><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Method">'+escapeHtml(x.method||'—')+'</td><td data-label="Amount">'+money(x.amount)+'</td><td data-label="Status">'+escapeHtml(x.status||'—')+'</td><td data-label="M-Pesa receipt">'+escapeHtml(x.mpesa_receipt||'—')+'</td></tr>').join(''):'<tr><td colspan="5">No payments recorded yet.</td></tr>';
  msg.textContent='Administrator access verified for '+(user.email||'your account')+'. Dashboard updated just now.';
+}
+async function adminReviewRider(riderId,decision){
+ const note=decision==='rejected'?window.prompt('Enter the reason for rejecting this rider profile:'):null;
+ if(decision==='rejected'&&!note?.trim())return;
+ if(decision==='approved'&&!window.confirm('Approve this rider? They will be allowed to go online and accept eligible bookings.'))return;
+ const msg=document.getElementById('adminMsg');
+ msg.className='notice';msg.textContent='Saving rider verification decision…';
+ const {error}=await supabaseClient.rpc('admin_review_motoride_rider',{p_rider_id:riderId,p_decision:decision,p_note:note||null});
+ if(error){msg.className='notice error';msg.textContent='Rider review failed: '+error.message;return;}
+ msg.className='notice success';msg.textContent='Rider '+decision+'. Refreshing administrator dashboard…';
+ await renderAdmin();
 }
 async function adminManageRide(rideId){
  const select=document.getElementById('rideAction_'+rideId);
