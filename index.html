@@ -157,7 +157,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <p>Estimated fare: <b id="rfare">KSh —</b></p>
     <button class="btn dark" id="acceptTripBtn" onclick="acceptTrip()">Accept trip</button>
     <button class="btn green hidden" id="completeTripBtn" onclick="completeTrip()">Complete trip</button>
-    <button class="btn light" onclick="declineTrip()">Decline</button>
+    <button class="btn light hidden" id="declineTripBtn" onclick="declineTrip()">Decline</button>
     <div id="riderMsg"></div>
    </div>
   </div>
@@ -471,7 +471,9 @@ async function loadRiderProfile(){
  if(online)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
  const {data:activeRide}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,status').eq('rider_id',user.id).in('status',['accepted','in_progress','arrived','started']).order('accepted_at',{ascending:false}).limit(1).maybeSingle();
  window.currentActiveRide=activeRide?.id||null;
+ window.currentIncomingRide=null;
  document.getElementById('completeTripBtn').classList.toggle('hidden',!activeRide);
+ document.getElementById('declineTripBtn').classList.add('hidden');
  document.getElementById('acceptTripBtn').classList.toggle('hidden',!!activeRide);
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=!!activeRide;onlineBtn.textContent=activeRide?'Busy — trip in progress':(online?'Go offline':'Go online');}
  if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';}
@@ -507,6 +509,7 @@ async function toggleOnline(btn){
 }
 let riderTimer=null;
 async function loadIncomingTrip(){
+ if(window.currentActiveRide){return;}
  const {data:{user}}=await supabaseClient.auth.getUser();if(!user||!online)return;
  const {data,error}=await supabaseClient.rpc('get_nearest_requested_ride');
  if(error){document.getElementById('riderMsg').className='notice error';document.getElementById('riderMsg').textContent='Matching error: '+error.message;return}
@@ -515,6 +518,7 @@ async function loadIncomingTrip(){
  document.getElementById('rdest').textContent=ride?ride.destination:'—';
  document.getElementById('rfare').textContent=ride?'KSh '+Number(ride.fare||0):'KSh —';
  window.currentIncomingRide=ride?ride.ride_id:null;
+ document.getElementById('declineTripBtn').classList.toggle('hidden',!ride);
  if(ride)document.getElementById('riderMsg').textContent='Nearest request: '+Number(ride.distance_km||0).toFixed(2)+' km away.';
 }
 function startRiderLocationTracking(userId){
@@ -555,7 +559,7 @@ async function acceptTrip(){
  if(error){m.className='notice error';m.textContent=error.message;return}
  window.currentActiveRide=data.id;window.currentIncomingRide=null;
  document.getElementById('rpick').textContent=data.pickup_location;document.getElementById('rdest').textContent=data.destination;document.getElementById('rfare').textContent='KSh '+Number(data.fare||0);
- document.getElementById('completeTripBtn').classList.remove('hidden');document.getElementById('acceptTripBtn').classList.add('hidden');
+ document.getElementById('completeTripBtn').classList.remove('hidden');document.getElementById('acceptTripBtn').classList.add('hidden');document.getElementById('declineTripBtn').classList.add('hidden');
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=true;onlineBtn.textContent='Busy — trip in progress';}
  online=true;document.getElementById('onlineMsg').textContent='Trip in progress — GPS active, unavailable for new bookings';
  m.className='notice';m.textContent='Trip accepted. You are now unavailable for other customers. GPS tracking remains active for this customer.';
@@ -568,7 +572,7 @@ async function completeTrip(){
  const {data,error}=await supabaseClient.rpc('complete_assigned_ride',{ride_id:window.currentActiveRide});
  if(error){m.className='notice error';m.textContent=error.message;return}
  window.currentActiveRide=null;
- document.getElementById('completeTripBtn').classList.add('hidden');document.getElementById('acceptTripBtn').classList.remove('hidden');
+ document.getElementById('completeTripBtn').classList.add('hidden');document.getElementById('acceptTripBtn').classList.remove('hidden');document.getElementById('declineTripBtn').classList.add('hidden');
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=false;onlineBtn.textContent=online?'Go offline':'Go online';}
  document.getElementById('rpick').textContent='No active trip';document.getElementById('rdest').textContent='—';document.getElementById('rfare').textContent='KSh —';
  m.className='notice';m.textContent='Trip completed. You are available for the next booking.';
