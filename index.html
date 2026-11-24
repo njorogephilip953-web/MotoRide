@@ -155,7 +155,8 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <p>Pickup: <b id="rpick">No active trip</b></p>
     <p>Destination: <b id="rdest">—</b></p>
     <p>Estimated fare: <b id="rfare">KSh —</b></p>
-    <button class="btn dark" onclick="acceptTrip()">Accept trip</button>
+    <button class="btn dark" id="acceptTripBtn" onclick="acceptTrip()">Accept trip</button>
+    <button class="btn green hidden" id="completeTripBtn" onclick="completeTrip()">Complete trip</button>
     <button class="btn light" onclick="declineTrip()">Decline</button>
     <div id="riderMsg"></div>
    </div>
@@ -468,8 +469,13 @@ async function loadRiderProfile(){
  document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
  online=!!data.is_online;
  if(online)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
+ const {data:activeRide}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,status').eq('rider_id',user.id).in('status',['accepted','in_progress','arrived','started']).order('accepted_at',{ascending:false}).limit(1).maybeSingle();
+ window.currentActiveRide=activeRide?.id||null;
+ document.getElementById('completeTripBtn').classList.toggle('hidden',!activeRide);
+ document.getElementById('acceptTripBtn').classList.toggle('hidden',!!activeRide);
+ if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';}
  const btn=document.querySelector('#rider .roleGrid .card:first-child button.btn.dark, #rider .roleGrid .card:first-child button.btn.green:last-of-type');
- const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=data.verification_status==='approved'?(online?'Approved — online and accepting trips':'Approved — offline'):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
+ const msg=document.getElementById('onlineMsg'); if(btn){btn.textContent=online?'Go offline':'Go online';btn.className=online?'btn dark':'btn green';} if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
 }
 async function toggleOnline(btn){
  const {data:{user}}=await supabaseClient.auth.getUser();
@@ -546,9 +552,25 @@ async function acceptTrip(){
  m.className='notice';m.textContent='Accepting trip…';
  const {data,error}=await supabaseClient.rpc('accept_requested_ride',{ride_id:id});
  if(error){m.className='notice error';m.textContent=error.message;return}
- m.className='notice';m.textContent='Trip accepted. Customer has been notified.';
+ window.currentActiveRide=data.id;window.currentIncomingRide=null;
  document.getElementById('rpick').textContent=data.pickup_location;document.getElementById('rdest').textContent=data.destination;document.getElementById('rfare').textContent='KSh '+Number(data.fare||0);
- online=true;document.getElementById('onlineMsg').textContent='Online — trip in progress';
+ document.getElementById('completeTripBtn').classList.remove('hidden');document.getElementById('acceptTripBtn').classList.add('hidden');
+ online=true;document.getElementById('onlineMsg').textContent='Trip in progress — GPS active, unavailable for new bookings';
+ m.className='notice';m.textContent='Trip accepted. You are now unavailable for other customers. GPS tracking remains active for this customer.';
+ loadMyBookings();
+}
+async function completeTrip(){
+ const m=document.getElementById('riderMsg');
+ if(!window.currentActiveRide){m.className='notice error';m.textContent='No active trip was found.';return}
+ m.className='notice';m.textContent='Completing trip…';
+ const {data,error}=await supabaseClient.rpc('complete_assigned_ride',{ride_id:window.currentActiveRide});
+ if(error){m.className='notice error';m.textContent=error.message;return}
+ window.currentActiveRide=null;
+ document.getElementById('completeTripBtn').classList.add('hidden');document.getElementById('acceptTripBtn').classList.remove('hidden');
+ document.getElementById('rpick').textContent='No active trip';document.getElementById('rdest').textContent='—';document.getElementById('rfare').textContent='KSh —';
+ m.className='notice';m.textContent='Trip completed. You are available for the next booking.';
+ document.getElementById('onlineMsg').textContent=online?'Online — GPS active, searching for nearby trips':'Offline';
+ if(online)loadIncomingTrip();
  loadMyBookings();
 }
 function declineTrip(){document.getElementById('riderMsg').className='notice';document.getElementById('riderMsg').textContent='Trip declined.'}
