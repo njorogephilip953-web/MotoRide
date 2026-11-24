@@ -142,7 +142,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="field"><label>Phone</label><input id="rphone" placeholder="07XX XXX XXX"></div>
     <div class="field"><label>Motorcycle model</label><input id="rmodel" placeholder="e.g. Boxer 150"></div>
     <div class="field"><label>Motorcycle registration</label><input id="reg" placeholder="KXX 123X"></div>
-    <div class="field"><label>National ID number</label><input id="ridnumber" placeholder="National ID number"></div>
+    <div class="field"><label>National ID number</label><input id="ridnumber" placeholder="National ID number" required></div>
     <button class="btn light" onclick="saveRiderProfile()">Save rider profile</button>
     <button class="btn green" onclick="toggleOnline(this)">Go online</button>
     <div id="onlineMsg" class="notice">Offline</div>
@@ -217,7 +217,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
    <div class="field"><label>Phone</label><input id="authRiderPhone" placeholder="07XX XXX XXX"></div>
    <div class="field"><label>Motorcycle model</label><input id="authRiderModel" placeholder="e.g. Boxer 150"></div>
    <div class="field"><label>Motorcycle registration</label><input id="authRiderPlate" placeholder="KXX 123X"></div>
-   <div class="field"><label>National ID number</label><input id="authRiderId" placeholder="National ID number"></div>
+   <div class="field"><label>National ID number</label><input id="authRiderId" placeholder="National ID number" required></div>
   </div>
   <button id="authAction" class="btn green" style="width:100%" onclick="submitAuth()">Create account</button>
   <div id="authMsg"></div>
@@ -268,6 +268,7 @@ function setAuthMode(mode){
 async function submitAuth(){
  const e=document.getElementById('email').value.trim(),p=document.getElementById('password').value,box=document.getElementById('authMsg');
  if(!e||p.length<6){box.className='notice error';box.textContent='Enter a valid email and a password of at least 6 characters.';return}
+ if(authMode==='signup'&&authRole==='rider'&&!document.getElementById('authRiderId').value.trim()){box.className='notice error';box.textContent='National ID number is required for rider registration.';document.getElementById('authRiderId').focus();return}
  box.className='notice';box.textContent=authMode==='signup'?'Creating your account…':'Signing you in…';
  let result;
  if(authMode==='signup') {
@@ -440,13 +441,16 @@ async function saveRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser();
  const m=document.getElementById('onlineMsg');
  if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
+ const nationalId=document.getElementById('ridnumber').value.trim();
+ if(!nationalId){m.className='notice error';m.textContent='National ID number is required. Please enter it before saving your rider profile or going online.';document.getElementById('ridnumber').focus();return false}
  const fullName=document.getElementById('rname').value.trim();
  const phone=document.getElementById('rphone').value.trim();
  const {error:profileError}=await supabaseClient.from('profiles').upsert({id:user.id,full_name:fullName,phone,role:'rider'},{onConflict:'id'});
  if(profileError){m.className='notice error';m.textContent='Could not save name and phone: '+profileError.message;return}
  const payload={id:user.id,motorcycle_model:document.getElementById('rmodel').value.trim()||null,motorcycle_plate:document.getElementById('reg').value.trim()||null,identification_number:document.getElementById('ridnumber').value.trim()||null};
  const {error}=await supabaseClient.from('riders').upsert(payload,{onConflict:'id'});
- m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved, including your name and phone.';
+ m.className=error?'notice error':'notice';m.textContent=error?error.message:'Rider profile saved, including the required National ID number.';
+ return !error;
 }
 async function loadRiderProfile(){
  const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
@@ -462,7 +466,8 @@ async function toggleOnline(btn){
  const {data:{user}}=await supabaseClient.auth.getUser();
  const m=document.getElementById('onlineMsg');
  if(!user){m.className='notice error';m.textContent='Please sign in as a rider first.';openAuth('login','rider');return}
- await saveRiderProfile();
+ const saved=await saveRiderProfile();
+ if(saved===false)return;
  const next=!online;
  if(next){
   let pos;
@@ -575,7 +580,7 @@ async function renderAdmin(){
   if(x.status==='accepted') {actions.push({value:'status:in_progress',label:'Start ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
   if(x.status==='in_progress') {actions.push({value:'status:completed',label:'Complete ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
   const actionControl=actions.length?'<div class="adminAction"><select id="rideAction_'+x.id+'" aria-label="Action for booking '+String(x.id).slice(0,8)+'"><option value="">Choose action</option>'+actions.map(a=>'<option value="'+escapeHtml(a.value)+'">'+escapeHtml(a.label)+'</option>').join('')+'</select><button class="btn green" type="button" onclick="adminManageRide(\''+x.id+'\')">Apply</button></div>':'<span class="muted">No actions</span>';
-  const riderProfile=x.rider_id?'<details class="riderProfile"><summary>View assigned rider profile</summary><div class="riderProfileGrid"><div><b>Full name</b><span>'+escapeHtml(x.rider_name||'Not provided')+'</span></div><div><b>Phone</b><span>'+(x.rider_phone?'<a href="tel:'+escapeHtml(x.rider_phone)+'">'+escapeHtml(x.rider_phone)+'</a>':'Not provided')+'</span></div><div><b>Motorcycle</b><span>'+escapeHtml(x.rider_motorcycle||'Not provided')+'</span></div><div><b>Number plate</b><span>'+escapeHtml(x.rider_plate||'Not provided')+'</span></div><div><b>Driving licence</b><span>'+escapeHtml(x.rider_license_number||'Not provided')+'</span></div><div><b>National ID</b><span>'+(x.rider_identification_number?'••••'+escapeHtml(String(x.rider_identification_number).slice(-4)):'Not provided')+'</span></div><div><b>Rider rating</b><span>'+(x.rider_rating==null?'Not rated':escapeHtml(String(x.rider_rating)))+'</span></div><div><b>Online / available</b><span>'+(x.rider_online?'Online':'Offline')+' / '+(x.rider_available?'Available':'On a ride or unavailable')+'</span></div><div><b>Last location update</b><span>'+(x.rider_location_updated_at?new Date(x.rider_location_updated_at).toLocaleString('en-KE'):'Not shared yet')+'</span></div><div><b>Current location</b><span>'+(x.rider_latitude!=null&&x.rider_longitude!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+encodeURIComponent(x.rider_latitude+','+x.rider_longitude)+'">View rider on map</a>':'Location unavailable')+'</span></div></div></details>':'';
+  const riderProfile=x.rider_id?'<details class="riderProfile"><summary>View assigned rider profile</summary><div class="riderProfileGrid"><div><b>Full name</b><span>'+escapeHtml(x.rider_name||'Not provided')+'</span></div><div><b>Phone</b><span>'+(x.rider_phone?'<a href="tel:'+escapeHtml(x.rider_phone)+'">'+escapeHtml(x.rider_phone)+'</a>':'Not provided')+'</span></div><div><b>Motorcycle</b><span>'+escapeHtml(x.rider_motorcycle||'Not provided')+'</span></div><div><b>Number plate</b><span>'+escapeHtml(x.rider_plate||'Not provided')+'</span></div><div><b>National ID number</b><span>'+(x.rider_identification_number?escapeHtml(x.rider_identification_number):'MISSING — rider must update profile')+'</span></div><div><b>Rider rating</b><span>'+(x.rider_rating==null?'Not rated':escapeHtml(String(x.rider_rating)))+'</span></div><div><b>Online / available</b><span>'+(x.rider_online?'Online':'Offline')+' / '+(x.rider_available?'Available':'On a ride or unavailable')+'</span></div><div><b>Last location update</b><span>'+(x.rider_location_updated_at?new Date(x.rider_location_updated_at).toLocaleString('en-KE'):'Not shared yet')+'</span></div><div><b>Current location</b><span>'+(x.rider_latitude!=null&&x.rider_longitude!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+encodeURIComponent(x.rider_latitude+','+x.rider_longitude)+'">View rider on map</a>':'Location unavailable')+'</span></div></div></details>':'';
   return '<tr><td data-label="Booking ref">'+escapeHtml(String(x.id||'').slice(0,8).toUpperCase())+'</td><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location)+'</td><td data-label="Destination">'+escapeHtml(x.destination)+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+escapeHtml(x.status||'—')+'</td><td data-label="Payment">'+escapeHtml(x.payment_status||'—')+'</td><td data-label="Admin action">'+actionControl+'</td></tr>'+(riderProfile?'<tr class="riderProfileRow"><td colspan="9">'+riderProfile+'</td></tr>':'');
  }).join(''):'<tr><td colspan="9">No bookings yet.</td></tr>';
  document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>'<tr><td data-label="Rider ID">'+escapeHtml(String(x.id).slice(0,8))+'…</td><td data-label="Motorcycle">'+escapeHtml(x.motorcycle_model||'—')+'</td><td data-label="Plate">'+escapeHtml(x.motorcycle_plate||'—')+'</td><td data-label="Online">'+(x.is_online?'Yes':'No')+'</td><td data-label="Available">'+(x.is_available?'Yes':'No')+'</td></tr>').join(''):'<tr><td colspan="5">No riders registered yet.</td></tr>';
