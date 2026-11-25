@@ -168,6 +168,8 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <button class="btn light" onclick="saveRiderProfile()">Save rider profile</button>
     <button class="btn green" id="toggleOnlineBtn" onclick="toggleOnline(this)">Go online</button>
     <div id="onlineMsg" class="notice">Offline</div>
+    <div id="riderSubscriptionMsg" class="notice" style="margin-top:10px">Loading rider subscription status…</div>
+
    </div>
    <div class="card">
     <h3>Incoming trip</h3>
@@ -214,7 +216,9 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="stat"><strong id="aCommission">KSh 0</strong>MotoRide commission (10%)</div>
     <div class="stat"><strong id="aRiderEarnings">KSh 0</strong>Rider earnings after commission</div>
     <div class="stat"><strong id="aCommissionTrips">0</strong>Trips with commission recorded</div>
-    <div class="stat"><strong>KSh 0</strong>Mandatory rider subscription for first 3 launch months</div>
+    <div class="stat"><strong>KSh 200</strong>Rider subscription per month after first 3 launch months</div>
+    <div class="stat"><strong id="aLaunchStatus">Not launched</strong>Official launch / free-period start</div>
+    <div class="stat"><button class="btn green" type="button" onclick="startMotoRideLaunch()">Set official launch date now</button><small id="aLaunchHelp">Only press when MotoRide is officially open to riders and customers.</small></div>
    </div>
    <div class="card" style="margin-top:18px" id="bookingManagement">
     <div class="sectionHead"><h3>Booking Management</h3><p class="muted">Search, filter and manage customer bookings, payments and rider assignments.</p></div>
@@ -612,6 +616,8 @@ async function saveRiderProfile(){
  return !error;
 }
 async function loadRiderProfile(){
+ await loadRiderSubscription();
+
  const {data:{user}}=await supabaseClient.auth.getUser(); if(!user)return;
  const [{data},{data:profile}]=await Promise.all([
   supabaseClient.from('riders').select('motorcycle_model,motorcycle_plate,identification_number,is_online,is_available,verification_status,verification_note').eq('id',user.id).maybeSingle(),
@@ -633,6 +639,25 @@ async function loadRiderProfile(){
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=!!activeRide;onlineBtn.textContent=activeRide?'Busy — trip in progress':(online?'Go offline':'Go online');}
  if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';}
  const msg=document.getElementById('onlineMsg'); if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
+}
+
+async function loadRiderSubscription(){
+ const box=document.getElementById('riderSubscriptionMsg');if(!box)return;
+ const {data,error}=await supabaseClient.rpc('get_my_motoride_subscription');
+ if(error){box.className='notice error';box.textContent='Subscription status unavailable: '+error.message;return;}
+ const s=Array.isArray(data)?data[0]:data;
+ if(!s){box.className='notice';box.textContent='Subscription information will appear here.';return;}
+ if(s.trial_active){
+  const end=s.trial_ends_at?new Date(s.trial_ends_at).toLocaleDateString('en-KE'):'launch date not set';
+  box.className='notice success';
+  box.textContent='MotoRide rider subscription: FREE launch period. No subscription payment is due during the first 3 months'+(s.trial_ends_at?'. Free period ends '+end+'.':'. The free period starts on official launch.');
+ }else if(s.subscription_active){
+  box.className='notice success';
+  box.textContent='Subscription active. KSh 200/month'+(s.paid_until?' • paid until '+new Date(s.paid_until).toLocaleDateString('en-KE'):'')+'.';
+ }else{
+  box.className='notice error';
+  box.textContent='Subscription required: KSh 200 per month. Payment is not yet connected; contact MotoRide admin to renew. You cannot go online until active.';
+ }
 }
 async function toggleOnline(btn){
  const {data:{user}}=await supabaseClient.auth.getUser();
@@ -780,6 +805,16 @@ function renderAdminBookings(){
   return '<tr><td data-label="Booking ref"><b>'+escapeHtml(ref)+'</b></td><td data-label="Date">'+escapeHtml(date)+'</td><td data-label="Customer">'+customer+'</td><td data-label="Customer phone">'+customerPhone+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location||'—')+'</td><td data-label="Destination">'+escapeHtml(x.destination||'—')+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+statusPill+'</td><td data-label="Payment">'+paymentPill+'</td><td data-label="Assigned rider / action">'+rider+actionControl+'</td></tr>';
  }).join('');
 }
+
+async function startMotoRideLaunch(){
+ const msg=document.getElementById('adminMsg');
+ if(!window.confirm('Confirm MotoRide is officially launching now? This starts the 3-month free rider subscription period and cannot be reset from the dashboard.'))return;
+ msg.className='notice';msg.textContent='Recording official launch date…';
+ const {data,error}=await supabaseClient.rpc('admin_set_motoride_launch',{p_launch_at:new Date().toISOString()});
+ if(error){msg.className='notice error';msg.textContent='Launch date was not saved: '+error.message;return;}
+ msg.className='notice success';msg.textContent='Official launch date recorded. Riders receive 3 free months from this date.';
+ await renderAdmin();
+}
 async function renderAdmin(){
  const msg=document.getElementById('adminMsg');
  const {data:{user},error:authError}=await supabaseClient.auth.getUser();
@@ -797,6 +832,13 @@ async function renderAdmin(){
   msg.textContent='Dashboard data could not be loaded: '+error.message;
   return;
  }
+ const {data:billingRows,error:billingError}=await supabaseClient.from('motoride_billing_settings').select('launch_at,rider_monthly_fee_kes,free_trial_months').limit(1);
+ if(billingError){msg.className='notice error';msg.textContent='Dashboard loaded, but subscription settings could not be read.';return;}
+ const billing=billingRows?.[0];
+ const launch=document.getElementById('aLaunchStatus');
+ if(launch)launch.textContent=billing?.launch_at?new Date(billing.launch_at).toLocaleDateString('en-KE'):'Not launched';
+ const launchHelp=document.getElementById('aLaunchHelp');
+ if(launchHelp)launchHelp.textContent=billing?.launch_at?'Free rider period ends '+new Date(new Date(billing.launch_at).setMonth(new Date(billing.launch_at).getMonth()+3)).toLocaleDateString('en-KE')+'. Launch date is locked.':'The 3-month free period starts only when the administrator confirms the official launch.';
  const summary=data?.summary||{};
  const {data:commissionSummary,error:commissionError}=await supabaseClient.rpc('get_motoride_commission_summary');
  if(commissionError){msg.className='notice error';msg.textContent='Dashboard loaded, but commission totals could not be loaded: '+commissionError.message;return;}
