@@ -434,14 +434,16 @@ async function estimateAndRequest(){
     }catch{}
    }
    msg.className='notice error';
-   msg.textContent='Booking saved, but M-Pesa prompt failed: '+paymentFailure;
+   msg.textContent='Booking saved, but M-Pesa prompt failed: '+paymentFailure+' Your booking remains unpaid and hidden from riders. You can retry from Recent bookings.';
+   await loadMyBookings();
+   startRideWatcher(data.id);
    return;
   }
   msg.className='notice';msg.textContent='Booking saved. '+(paymentResult.message||'M-Pesa prompt sent. Check your phone and enter your M-Pesa PIN.');
  }
- document.getElementById('riderName').textContent='Searching for a rider…';
- document.getElementById('eta').textContent='3–7 min';
- msg.className='notice';msg.textContent='M-Pesa prompt sent. Complete the payment on your phone. Rider matching starts after payment is confirmed.';
+ document.getElementById('riderName').textContent='Waiting for M-Pesa payment';
+ document.getElementById('eta').textContent='Payment confirmation required';
+ msg.className='notice';msg.textContent='M-Pesa prompt sent. Complete payment on your phone. MotoRide will look for a rider only after Safaricom confirms payment.';
  await loadMyBookings();
  startRideWatcher(data.id);
 }
@@ -564,8 +566,20 @@ async function refreshCustomerRide(id){
   name.textContent='Booking cancelled';eta.textContent='—';msg.className='notice error';msg.textContent='This booking was cancelled.';
   const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Live tracking ended because this booking was cancelled.';
  }else{
-  name.textContent='Searching for a rider…';eta.textContent='3–7 min';
-  const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Waiting for a rider to accept this booking.';
+  const paymentState=String(data.payment_status||'unpaid').toLowerCase();
+  if(paymentState==='paid'){
+   name.textContent='Payment confirmed';eta.textContent='Finding a nearby rider';
+   msg.className='notice';msg.textContent='M-Pesa payment confirmed. MotoRide is finding an approved nearby rider.';
+   const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Payment confirmed. Waiting for a nearby rider to accept your booking.';
+  }else if(paymentState==='failed'){
+   name.textContent='Payment not completed';eta.textContent='Retry M-Pesa payment';
+   msg.className='notice error';msg.textContent='M-Pesa payment was not completed. Your booking is not visible to riders. Retry payment from Recent bookings.';
+   const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Waiting for successful M-Pesa payment confirmation. No rider has been notified.';
+  }else{
+   name.textContent='Waiting for M-Pesa payment';eta.textContent='Payment confirmation required';
+   msg.className='notice';msg.textContent='Complete the M-Pesa payment. Your booking will only be sent to riders after payment is confirmed.';
+   const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Waiting for successful M-Pesa payment confirmation. No rider can see this booking yet.';
+  }
  }
  await loadMyBookings();
 }
