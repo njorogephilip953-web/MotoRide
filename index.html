@@ -832,9 +832,9 @@ async function renderAdmin(){
   msg.textContent='Dashboard data could not be loaded: '+error.message;
   return;
  }
- const {data:billingRows,error:billingError}=await supabaseClient.from('motoride_billing_settings').select('launch_at,rider_monthly_fee_kes,free_trial_months').limit(1);
+ const {data:billingRows,error:billingError}=await supabaseClient.rpc('get_motoride_billing_settings');
  if(billingError){msg.className='notice error';msg.textContent='Dashboard loaded, but subscription settings could not be read.';return;}
- const billing=billingRows?.[0];
+ const billing=Array.isArray(billingRows)?billingRows[0]:billingRows;
  const launch=document.getElementById('aLaunchStatus');
  if(launch)launch.textContent=billing?.launch_at?new Date(billing.launch_at).toLocaleDateString('en-KE'):'Not launched';
  const launchHelp=document.getElementById('aLaunchHelp');
