@@ -19,7 +19,7 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:var(--dark);color:#fff;border-radius:16px;padding:20px}.stat strong{display:block;font-size:29px;margin-bottom:4px}
 .booking{display:grid;grid-template-columns:1fr 1fr;gap:20px}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:800;margin-bottom:6px}.field input,.field select{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;outline:none}.field input:focus,.field select:focus{border-color:var(--green);box-shadow:0 0 0 3px #16a34a18}
 .price{font-size:28px;font-weight:950;margin:10px 0}.notice{margin-top:12px;padding:12px;border-radius:11px;background:#ecfdf5;color:#166534;font-weight:750}.error{background:#fef2f2;color:#991b1b}
-.map{height:300px;border-radius:16px;background:linear-gradient(135deg,#dcfce7,#e2e8f0);position:relative;overflow:hidden;margin-top:14px}.road{position:absolute;width:140%;height:10px;background:#fff;left:-20%;top:46%;transform:rotate(-17deg);box-shadow:0 75px 0 #fff}.pin{position:absolute;font-size:31px;transition:1s}.pickupPin{left:18%;top:25%}.destPin{right:17%;bottom:18%}.riderPin{left:52%;top:43%}
+.live-map{height:300px;border-radius:16px;overflow:hidden;margin-top:14px;background:#e2e8f0;border:1px solid var(--line)}
 .roleGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.hidden{display:none!important}
 .tableWrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap}
 .riderProfile{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;white-space:normal;min-width:260px}.riderProfile summary{cursor:pointer;font-weight:700;color:#176b3a}.riderProfileGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.riderProfileGrid>div{min-width:0}.riderProfileGrid b{display:block;color:var(--muted);font-size:12px;text-transform:uppercase}.riderProfileGrid span{display:block;overflow-wrap:anywhere;margin-top:3px}.riderProfileRow td{white-space:normal!important;background:#f8fafc}.riderProfileRow td:before{content:none!important}
@@ -145,7 +145,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
    </div>
    <div class="card">
     <h3>Your trip</h3>
-    <div class="map"><div class="road"></div><span class="pin pickupPin">📍</span><span class="pin riderPin" id="riderPin">🏍️</span><span class="pin destPin">🏁</span></div>
+    <div id="liveRideMap" class="live-map" role="img" aria-label="Live map showing your pickup and assigned rider"></div><p id="liveTrackingMsg" class="muted" aria-live="polite">Your rider location will appear here after a rider accepts the booking.</p>
     <p class="muted">Rider: <b id="riderName">Awaiting request</b></p>
     <p class="muted">ETA: <b id="eta">—</b></p>
     <div class="price" id="fare">KSh —</div>
@@ -263,6 +263,8 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
 </div>
 </div>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = "https://nvqcxrvqexxizrlwpmrv.supabase.co";
@@ -280,6 +282,10 @@ let riderGeoWatchId=null;
 let riderRealtimeChannel=null;
 let rideRealtimeChannel=null;
 let lastRiderLocationWrite=0;
+let customerLiveMap=null;
+let customerPickupMarker=null;
+let customerRiderMarker=null;
+let customerRideLine=null;
 
 function go(id){
  document.querySelectorAll('main,section[id]').forEach(x=>x.classList.add('hidden'));
@@ -490,20 +496,66 @@ async function retryBookingPayment(rideId){
  finally{if(button){button.disabled=false;button.textContent='Retry M-Pesa payment';}}
 }
 let rideTimer=null;
+function updateCustomerLiveMap(details){
+ const status=document.getElementById('liveTrackingMsg');
+ const mapEl=document.getElementById('liveRideMap');
+ if(!status||!mapEl)return;
+ const pickup=Number.isFinite(Number(details?.pickup_latitude))&&Number.isFinite(Number(details?.pickup_longitude))&&details?.pickup_latitude!==null&&details?.pickup_longitude!==null
+  ?[Number(details.pickup_latitude),Number(details.pickup_longitude)]:null;
+ const rider=Number.isFinite(Number(details?.rider_latitude))&&Number.isFinite(Number(details?.rider_longitude))&&details?.rider_latitude!==null&&details?.rider_longitude!==null
+  ?[Number(details.rider_latitude),Number(details.rider_longitude)]:null;
+ if(!window.L){status.textContent='Map service is unavailable right now. Rider GPS details will refresh automatically.';return;}
+ if(!pickup&&!rider){status.textContent='Waiting for GPS coordinates from your pickup and rider.';return;}
+ if(!customerLiveMap){
+  customerLiveMap=L.map(mapEl,{scrollWheelZoom:false}).setView(pickup||rider,15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(customerLiveMap);
+ }
+ if(pickup){
+  if(!customerPickupMarker)customerPickupMarker=L.marker(pickup).addTo(customerLiveMap).bindPopup('Your pickup location');
+  else customerPickupMarker.setLatLng(pickup);
+ }
+ if(rider){
+  if(!customerRiderMarker)customerRiderMarker=L.marker(rider).addTo(customerLiveMap).bindPopup('Your assigned rider');
+  else customerRiderMarker.setLatLng(rider);
+ }
+ if(pickup&&rider){
+  const points=[pickup,rider];
+  if(!customerRideLine)customerRideLine=L.polyline(points,{color:'#16a34a',weight:4,dashArray:'7 8'}).addTo(customerLiveMap);
+  else customerRideLine.setLatLngs(points);
+  customerLiveMap.fitBounds(L.latLngBounds(points),{padding:[35,35],maxZoom:16});
+ }else{
+  customerLiveMap.setView(pickup||rider,15);
+ }
+ setTimeout(()=>customerLiveMap?.invalidateSize(),100);
+ if(rider){
+  const updated=details.location_updated_at?new Date(details.location_updated_at).toLocaleTimeString('en-KE'):'recently';
+  status.textContent='Live rider GPS location • Last update '+updated+'. Location refreshes every 5 seconds while this page is open.';
+ }else{
+  status.textContent='Pickup location shown. Waiting for your rider to share their first GPS location.';
+ }
+}
 async function refreshCustomerRide(id){
  const {data,error}=await supabaseClient.from('rides').select('status').eq('id',id).maybeSingle();
  if(error||!data)return;
  const name=document.getElementById('riderName'),eta=document.getElementById('eta'),msg=document.getElementById('bookmsg');
- if(data.status==='accepted'||data.status==='completed'){
-  const {data:details}=await supabaseClient.rpc('get_customer_ride_details',{p_ride_id:id});
+ if(['accepted','in_progress','arrived','started','completed'].includes(data.status)){
+  const {data:details,error:detailsError}=await supabaseClient.rpc('get_customer_ride_details',{p_ride_id:id});
   const d=Array.isArray(details)?details[0]:details;
-  name.textContent=d?.rider_name||'Rider assigned';
-  eta.textContent=data.status==='completed'?'Trip completed':'Rider accepted';
-  msg.className='notice';msg.textContent=data.status==='completed'?'Your MotoRide trip is complete.':'A rider has accepted your booking.';
+  if(d){
+   name.textContent=d.rider_name||'Rider assigned';
+   eta.textContent=data.status==='completed'?'Trip completed':(data.status==='in_progress'||data.status==='started'?'Trip in progress':data.status==='arrived'?'Rider has arrived':'Rider accepted');
+   updateCustomerLiveMap(d);
+  }else if(detailsError){
+   const tracking=document.getElementById('liveTrackingMsg');
+   if(tracking)tracking.textContent='Rider details are temporarily unavailable. Please refresh shortly.';
+  }
+  msg.className='notice';msg.textContent=data.status==='completed'?'Your MotoRide trip is complete.':data.status==='arrived'?'Your rider has arrived.':data.status==='in_progress'||data.status==='started'?'Your trip is in progress.':'A rider has accepted your booking.';
  }else if(data.status==='cancelled'){
   name.textContent='Booking cancelled';eta.textContent='—';msg.className='notice error';msg.textContent='This booking was cancelled.';
+  const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Live tracking ended because this booking was cancelled.';
  }else{
   name.textContent='Searching for a rider…';eta.textContent='3–7 min';
+  const tracking=document.getElementById('liveTrackingMsg');if(tracking)tracking.textContent='Waiting for a rider to accept this booking.';
  }
  await loadMyBookings();
 }
@@ -781,7 +833,7 @@ async function adminManageRide(rideId){
  await renderAdmin();
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-setInterval(()=>{const x=document.getElementById('riderPin');if(x){x.style.left=(45+Math.random()*16)+'%';x.style.top=(38+Math.random()*18)+'%'}},1800);
+
 </script>
 </body>
 </html>
