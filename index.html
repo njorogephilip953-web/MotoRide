@@ -50,6 +50,10 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
  #admin .tableWrap tbody td[colspan]{display:block;grid-column:1/-1}
  #admin .tableWrap tbody td[colspan]:before{content:none}
  #admin .tableWrap tbody td[data-label="Admin action"]{grid-column:1/-1}
+ #admin .tableWrap tbody td[data-label="Assigned rider / action"]{grid-column:1/-1}
+ #admin .tableWrap tbody td[data-label="Assigned rider / action"] .adminAction{display:flex;align-items:center;gap:8px;width:100%}
+ #admin .tableWrap tbody td[data-label="Assigned rider / action"] .adminAction select{flex:1;min-width:0;max-width:none}
+ #admin .tableWrap tbody td[data-label="Assigned rider / action"] .adminAction .btn{flex:0 0 auto}
  #admin .adminAction{min-width:0;width:100%}
  #admin .adminRiderActions{min-width:0}
  #admin .adminRiderActions .btn{white-space:normal}
@@ -125,6 +129,8 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
   <div class="sectionHead"><h2>Book a motorcycle</h2><p class="muted">Enter the trip details and get an estimated fare.</p></div>
   <div class="booking">
    <div class="card">
+    <div class="field"><label for="customerName">Your full name</label><input id="customerName" type="text" autocomplete="name" placeholder="Enter your full name" required></div>
+    <div class="field"><label for="customerPhone">Your phone number</label><input id="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="07XXXXXXXX" required></div>
     <div class="field"><label>Pickup location</label><input id="pickup" placeholder="e.g. Westlands"><button class="btn light" type="button" style="margin-top:8px" onclick="capturePickupLocation()">Use my current GPS location</button><small id="pickupGpsMsg" class="muted">Allow location access so MotoRide can match you with nearby riders.</small></div>
     <div class="field"><label>Destination</label><input id="dest" placeholder="e.g. Nairobi CBD"></div>
     <div class="field"><label>Service</label>
@@ -386,11 +392,18 @@ async function estimateAndRequest(){
  if(!p||!d){msg.className='notice error';msg.textContent='Please enter both pickup and destination.';return}
  const {data:{user}}=await supabaseClient.auth.getUser();
  if(!user){msg.className='notice error';msg.textContent='Please log in or create an account before booking.';openAuth('login');return}
+ const customerName=document.getElementById('customerName').value.trim();
+ const customerPhone=document.getElementById('customerPhone').value.trim();
+ if(!customerName||!customerPhone){msg.className='notice error';msg.textContent='Enter your full name and phone number so the rider and MotoRide administrator can identify your booking.';return}
+ if(!/^[+0-9][0-9\\s-]{7,14}$/.test(customerPhone)){msg.className='notice error';msg.textContent='Enter a valid phone number, for example 0712345678.';return}
  const service=document.getElementById('service').value;
  const payment=document.getElementById('pay').value;
  const fare=estimateFare();
  const mpesaPhone=document.getElementById('mpesaPhone')?.value.trim()||'';
  if(payment==='M-Pesa'&&!mpesaPhone){msg.className='notice error';msg.textContent='Enter the M-Pesa phone number to receive the payment prompt.';return}
+ msg.className='notice';msg.textContent='Saving your customer details…';
+ const {error:profileError}=await supabaseClient.from('profiles').update({full_name:customerName,phone:customerPhone}).eq('id',user.id);
+ if(profileError){msg.className='notice error';msg.textContent='Could not save your customer details: '+profileError.message;return}
  msg.className='notice';msg.textContent='Saving your booking…';
  if(!customerPickupCoords){msg.className='notice error';msg.textContent='For live nearby-rider matching, tap “Use my current GPS location” and allow location access.';return}
  const {data,error}=await supabaseClient.from('rides').insert({customer_id:user.id,pickup_location:p,destination:d,pickup_latitude:customerPickupCoords.latitude,pickup_longitude:customerPickupCoords.longitude,service_type:service,payment_method:payment,fare,status:'requested'}).select().single();
