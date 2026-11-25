@@ -546,6 +546,8 @@ async function loadRiderProfile(){
  if(online)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
  const {data:activeRide}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,status').eq('rider_id',user.id).in('status',['accepted','in_progress','arrived','started']).order('accepted_at',{ascending:false}).limit(1).maybeSingle();
  window.currentActiveRide=activeRide?.id||null;
+ // Keep GPS tracking during an active trip even though the rider is offline for matching.
+ if(online||activeRide)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
  window.currentIncomingRide=null;
  document.getElementById('completeTripBtn').classList.toggle('hidden',!activeRide);
  document.getElementById('declineTripBtn').classList.add('hidden');
@@ -635,7 +637,7 @@ async function acceptTrip(){
  document.getElementById('rpick').textContent=data.pickup_location;document.getElementById('rdest').textContent=data.destination;document.getElementById('rfare').textContent='KSh '+Number(data.fare||0);
  document.getElementById('completeTripBtn').classList.remove('hidden');document.getElementById('acceptTripBtn').classList.add('hidden');document.getElementById('declineTripBtn').classList.add('hidden');
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=true;onlineBtn.textContent='Busy — trip in progress';}
- online=true;document.getElementById('onlineMsg').textContent='Trip in progress — GPS active, unavailable for new bookings';
+ online=false;document.getElementById('onlineMsg').textContent='Offline — trip in progress. GPS tracking remains active for this customer.';
  m.className='notice';m.textContent='Trip accepted. You are now unavailable for other customers. GPS tracking remains active for this customer.';
  loadMyBookings();
 }
@@ -646,6 +648,9 @@ async function completeTrip(){
  const {data,error}=await supabaseClient.rpc('complete_assigned_ride',{ride_id:window.currentActiveRide});
  if(error){m.className='notice error';m.textContent=error.message;return}
  window.currentActiveRide=null;
+ online=true;
+ const {data:{user}}=await supabaseClient.auth.getUser();
+ if(user)startRiderLocationTracking(user.id);
  document.getElementById('completeTripBtn').classList.add('hidden');document.getElementById('acceptTripBtn').classList.remove('hidden');document.getElementById('declineTripBtn').classList.add('hidden');
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=false;onlineBtn.textContent=online?'Go offline':'Go online';}
  document.getElementById('rpick').textContent='No active trip';document.getElementById('rdest').textContent='—';document.getElementById('rfare').textContent='KSh —';
