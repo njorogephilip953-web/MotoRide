@@ -288,7 +288,8 @@ function go(id){
  window.scrollTo({top:0,behavior:'smooth'});
  if(id==='admin'){renderAdmin();startAdminAutoRefresh();}
  if(id!=='admin'&&adminRefreshTimer){clearInterval(adminRefreshTimer);adminRefreshTimer=null;}
- if(id==='book')loadMyBookings();
+ if(id==='book'){loadMyBookings();startCustomerBookingsAutoRefresh();}
+ if(id!=='book'&&customerBookingsTimer){clearInterval(customerBookingsTimer);customerBookingsTimer=null;}
  if(id==='rider'){loadRiderProfile();startRiderWatcher();}
 }
 function openAuth(mode='signup',role='customer'){authRole=role;setAuthMode(mode);document.getElementById('authModal').style.display='flex'}
@@ -439,7 +440,7 @@ async function estimateAndRequest(){
 async function loadMyBookings(){
  const {data:{user}}=await supabaseClient.auth.getUser();
  if(!user)return;
- const {data,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,service_type,payment_method,fare,status,created_at').eq('customer_id',user.id).order('created_at',{ascending:false}).limit(10);
+ const {data,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,service_type,payment_method,payment_status,fare,status,created_at').eq('customer_id',user.id).order('created_at',{ascending:false}).limit(10);
  if(error)return;
  const list=document.getElementById('myBookings');
  if(!list)return;
@@ -450,11 +451,44 @@ async function loadMyBookings(){
    const d=Array.isArray(details)?details[0]:details;
    if(d) riderInfo=`<div class="muted" style="margin-top:7px"><b>Rider:</b> ${escapeHtml(d.rider_name||'Assigned rider')} • ${escapeHtml(d.rider_phone||'Phone unavailable')}<br><b>Motorcycle:</b> ${escapeHtml(d.motorcycle_model||'Not provided')} • ${escapeHtml(d.motorcycle_plate||'Plate not provided')}</div>`;
   }
-  return `<div class="card" style="margin-top:10px"><b>${escapeHtml(r.pickup_location)} → ${escapeHtml(r.destination)}</b><div class="muted" style="margin-top:5px">${escapeHtml(r.service_type||'ride')} • ${escapeHtml(r.payment_method||'M-Pesa')} • KSh ${Number(r.fare||0)} • <b>${escapeHtml(r.status)}</b></div>${riderInfo}</div>`;
+  const canRetry=String(r.payment_method||'').toLowerCase().replace(/[-\s]/g,'')==='mpesa'&&['failed','unpaid'].includes(String(r.payment_status||'').toLowerCase())&&r.status==='requested';
+  const paymentLabel=escapeHtml(r.payment_status||'unpaid');
+  const retryPanel=canRetry?`<div style="margin-top:12px;padding:12px;background:#fff7ed;border-radius:10px"><b>Payment ${paymentLabel}</b><p class="muted" style="margin:5px 0 9px">Your booking is waiting for payment. Enter your M-Pesa number to request a new STK prompt.</p><input id="retryPhone_${r.id}" type="tel" inputmode="tel" autocomplete="tel" placeholder="07XX XXX XXX" aria-label="M-Pesa phone number for booking ${String(r.id).slice(0,8)}" style="width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;margin-bottom:8px"><button class="btn green" type="button" onclick="retryBookingPayment('${r.id}')">Retry M-Pesa payment</button></div>`:'<div class="muted" style="margin-top:7px"><b>Payment:</b> '+paymentLabel+'</div>';
+  return `<div class="card" style="margin-top:10px"><b>${escapeHtml(r.pickup_location)} → ${escapeHtml(r.destination)}</b><div class="muted" style="margin-top:5px">${escapeHtml(r.service_type||'ride')} • ${escapeHtml(r.payment_method||'M-Pesa')} • KSh ${Number(r.fare||0)} • <b>${escapeHtml(r.status)}</b></div>${retryPanel}${riderInfo}</div>`;
  }));
  list.innerHTML=cards.length?cards.join(''):'<p class="muted">No bookings yet.</p>';
 }
 
+let customerBookingsTimer=null;
+function startCustomerBookingsAutoRefresh(){
+ if(customerBookingsTimer)clearInterval(customerBookingsTimer);
+ customerBookingsTimer=setInterval(()=>{
+  const section=document.getElementById('book');
+  if(section&&!section.classList.contains('hidden'))loadMyBookings();
+ },15000);
+}
+async function retryBookingPayment(rideId){
+ const phoneInput=document.getElementById('retryPhone_'+rideId);
+ const phone=phoneInput?.value.trim()||'';
+ if(!phone){phoneInput?.focus();alert('Enter the M-Pesa phone number first.');return;}
+ if(!window.confirm('Send a new M-Pesa payment prompt for this booking?'))return;
+ const button=phoneInput?.parentElement?.querySelector('button');
+ if(button){button.disabled=true;button.textContent='Sending prompt…';}
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('mpesa-stk-push',{body:{ride_id:rideId,phone_number:phone}});
+  if(error||data?.error){
+   let message=data?.error||error?.message||'Could not send the payment prompt.';
+   if(error?.context&&typeof error.context.clone==='function'){
+    try{const details=await error.context.clone().json();message=details.error||message;if(details.detail)message+=' '+details.detail;if(details.missing?.length)message+=' Missing secrets: '+details.missing.join(', ')+'.';}catch{}
+   }
+   alert(message);
+  }else{
+   alert('M-Pesa prompt sent. Complete payment on your phone. Your booking will be sent for rider matching after payment is confirmed.');
+   await loadMyBookings();
+  }
+ }catch(e){alert(e?.message||'Payment request failed. Please try again.');}
+ finally{if(button){button.disabled=false;button.textContent='Retry M-Pesa payment';}}
+}
 let rideTimer=null;
 async function refreshCustomerRide(id){
  const {data,error}=await supabaseClient.from('rides').select('status').eq('id',id).maybeSingle();
