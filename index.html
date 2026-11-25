@@ -197,8 +197,11 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
    <div class="stats">
     <div class="stat"><strong id="aTrips">—</strong>Total bookings</div>
     <div class="stat"><strong id="aRequested">—</strong>Awaiting rider</div>
-    <div class="stat"><strong id="aAccepted">—</strong>Accepted rides</div>\n    <div class="stat"><strong id="aInProgress">—</strong>Trips in progress</div>
-    <div class="stat"><strong id="aCompleted">—</strong>Completed rides</div>\n    <div class="stat"><strong id="aCancelled">—</strong>Cancelled bookings</div>\n    <div class="stat"><strong id="aFailedPayments">—</strong>Failed payments</div>
+    <div class="stat"><strong id="aAccepted">—</strong>Accepted rides</div>
+    <div class="stat"><strong id="aInProgress">—</strong>Trips in progress</div>
+    <div class="stat"><strong id="aCompleted">—</strong>Completed rides</div>
+    <div class="stat"><strong id="aCancelled">—</strong>Cancelled bookings</div>
+    <div class="stat"><strong id="aFailedPayments">—</strong>Failed payments</div>
     <div class="stat"><strong id="aRiders">—</strong>Online and available riders</div>
     <div class="stat"><strong id="aCustomers">—</strong>Customer accounts</div>
     <div class="stat"><strong id="aUnpaid">—</strong>Unpaid bookings</div>
@@ -620,7 +623,8 @@ function renderAdminBookings(){
  const service=document.getElementById('bookingServiceFilter')?.value||'';
  const filtered=rides.filter(x=>{
   const haystack=[x.id,x.customer_name,x.customer_phone,x.pickup_location,x.destination,x.rider_name,x.rider_phone,x.rider_plate,x.service_type,x.status,x.payment_status,x.latest_payment_status,x.latest_mpesa_receipt,x.latest_payment_result].join(' ').toLowerCase();
-  const paymentState=x.latest_payment_status||x.payment_status;\n  return (!search||haystack.includes(search))&&(!status||x.status===status)&&(!payment||paymentState===payment||(!x.latest_payment_status&&x.payment_status===payment))&&(!service||x.service_type===service);
+  const paymentState=x.latest_payment_status||x.payment_status;
+  return (!search||haystack.includes(search))&&(!status||x.status===status)&&(!payment||paymentState===payment||(!x.latest_payment_status&&x.payment_status===payment))&&(!service||x.service_type===service);
  });
  const count=document.getElementById('bookingResultCount');
  if(count)count.textContent='Showing '+filtered.length+' of '+rides.length+' bookings';
@@ -638,7 +642,9 @@ function renderAdminBookings(){
   const customerPhone=x.customer_phone?'<a href="tel:'+escapeHtml(x.customer_phone)+'">'+escapeHtml(x.customer_phone)+'</a>':'Not provided';
   const rider=x.rider_id?'<div class="bookingRider"><b>'+escapeHtml(x.rider_name||'Assigned rider')+'</b><br>'+(x.rider_phone?'<a href="tel:'+escapeHtml(x.rider_phone)+'">'+escapeHtml(x.rider_phone)+'</a>':'Phone unavailable')+'<details class="riderProfile"><summary>Full rider profile</summary><div class="riderProfileGrid"><div><b>Motorcycle</b><span>'+escapeHtml(x.rider_motorcycle||'Not provided')+'</span></div><div><b>Registration</b><span>'+escapeHtml(x.rider_plate||'Not provided')+'</span></div><div><b>National ID number</b><span>'+escapeHtml(x.rider_identification_number||'Not provided')+'</span></div><div><b>Rating</b><span>'+(x.rider_rating==null?'Not rated':escapeHtml(String(x.rider_rating)))+'</span></div><div><b>Online / available</b><span>'+(x.rider_online?'Online':'Offline')+' / '+(x.rider_available?'Available':'Busy or unavailable')+'</span></div><div><b>Last GPS update</b><span>'+(x.rider_location_updated_at?new Date(x.rider_location_updated_at).toLocaleString('en-KE'):'Not shared')+'</span></div><div><b>Current location</b><span>'+(x.rider_latitude!=null&&x.rider_longitude!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+encodeURIComponent(x.rider_latitude+','+x.rider_longitude)+'">Open rider map</a>':'Unavailable')+'</span></div></div></details></div>':'<span class="muted">Not assigned</span>';
   const statusPill='<span class="bookingStatus '+escapeHtml(x.status||'')+'">'+escapeHtml((x.status||'unknown').replace(/_/g,' '))+'</span>';
-  const paymentState=x.latest_payment_status||x.payment_status||'unknown';\n  const paymentExtra=x.latest_mpesa_receipt?'<br><small>Receipt: '+escapeHtml(x.latest_mpesa_receipt)+'</small>':(x.latest_payment_result?'<br><small>'+escapeHtml(x.latest_payment_result)+'</small>':'');\n  const paymentPill='<span class="bookingStatus '+escapeHtml(paymentState)+'">'+escapeHtml(paymentState)+'</span><br><small>'+escapeHtml(x.payment_method||'')+'</small>'+paymentExtra;
+  const paymentState=x.latest_payment_status||x.payment_status||'unknown';
+  const paymentExtra=x.latest_mpesa_receipt?'<br><small>Receipt: '+escapeHtml(x.latest_mpesa_receipt)+'</small>':(x.latest_payment_result?'<br><small>'+escapeHtml(x.latest_payment_result)+'</small>':'');
+  const paymentPill='<span class="bookingStatus '+escapeHtml(paymentState)+'">'+escapeHtml(paymentState)+'</span><br><small>'+escapeHtml(x.payment_method||'')+'</small>'+paymentExtra;
   const date=x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—';
   const ref=String(x.id||'').slice(0,8).toUpperCase();
   return '<tr><td data-label="Booking ref"><b>'+escapeHtml(ref)+'</b></td><td data-label="Date">'+escapeHtml(date)+'</td><td data-label="Customer">'+customer+'</td><td data-label="Customer phone">'+customerPhone+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location||'—')+'</td><td data-label="Destination">'+escapeHtml(x.destination||'—')+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+statusPill+'</td><td data-label="Payment">'+paymentPill+'</td><td data-label="Assigned rider / action">'+rider+actionControl+'</td></tr>';
@@ -668,7 +674,10 @@ async function renderAdmin(){
  const money=n=>'KSh '+Number(n||0).toLocaleString('en-KE',{maximumFractionDigits:2});
  document.getElementById('aTrips').textContent=Number(summary.total_bookings||0).toLocaleString('en-KE');
  document.getElementById('aRequested').textContent=Number(summary.requested_rides||0).toLocaleString('en-KE');
- document.getElementById('aAccepted').textContent=Number(summary.accepted_rides||0).toLocaleString('en-KE');\n document.getElementById('aInProgress').textContent=Number(summary.in_progress_rides||0).toLocaleString('en-KE');\n document.getElementById('aCancelled').textContent=Number(summary.cancelled_rides||0).toLocaleString('en-KE');\n document.getElementById('aFailedPayments').textContent=Number(summary.failed_payments||0).toLocaleString('en-KE');
+ document.getElementById('aAccepted').textContent=Number(summary.accepted_rides||0).toLocaleString('en-KE');
+ document.getElementById('aInProgress').textContent=Number(summary.in_progress_rides||0).toLocaleString('en-KE');
+ document.getElementById('aCancelled').textContent=Number(summary.cancelled_rides||0).toLocaleString('en-KE');
+ document.getElementById('aFailedPayments').textContent=Number(summary.failed_payments||0).toLocaleString('en-KE');
  document.getElementById('aCompleted').textContent=Number(summary.completed_rides||0).toLocaleString('en-KE');
  document.getElementById('aRiders').textContent=Number(summary.online_riders||0).toLocaleString('en-KE');
  document.getElementById('aCustomers').textContent=Number(summary.customers||0).toLocaleString('en-KE');
