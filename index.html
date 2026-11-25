@@ -24,7 +24,22 @@ section{padding:55px 5%}.sectionHead{margin-bottom:25px}.sectionHead h2{font-siz
 .tableWrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap}
 .riderProfile{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;white-space:normal;min-width:260px}.riderProfile summary{cursor:pointer;font-weight:700;color:#176b3a}.riderProfileGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.riderProfileGrid>div{min-width:0}.riderProfileGrid b{display:block;color:var(--muted);font-size:12px;text-transform:uppercase}.riderProfileGrid span{display:block;overflow-wrap:anywhere;margin-top:3px}.riderProfileRow td{white-space:normal!important;background:#f8fafc}.riderProfileRow td:before{content:none!important}
  .adminRiderActions{display:flex;gap:7px;flex-wrap:wrap;min-width:190px}.adminRiderActions .btn{padding:8px 10px;font-size:13px;white-space:nowrap}
- .adminAction{display:flex;gap:7px;align-items:center;min-width:210px}.adminAction select{min-width:0;flex:1;width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:13px}.adminAction .btn{padding:9px 12px;font-size:13px;white-space:nowrap}
+ .adminAction{display:flex;gap:7px;align-items:center;min-width:210px}
+.bookingFilters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;align-items:end}
+.bookingFilters .field{margin:8px 0}
+.bookingFilters input,.bookingFilters select{width:100%;min-width:0;padding:11px;border:1px solid #cbd5e1;border-radius:10px;background:#fff}
+.bookingToolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
+.bookingStatus{display:inline-block;padding:5px 8px;border-radius:8px;background:#f1f5f9;font-weight:800;font-size:12px;text-transform:capitalize}
+.bookingStatus.paid,.bookingStatus.completed{background:#dcfce7;color:#166534}
+.bookingStatus.failed,.bookingStatus.cancelled{background:#fee2e2;color:#991b1b}
+.bookingStatus.pending,.bookingStatus.requested,.bookingStatus.unpaid{background:#fef3c7;color:#92400e}
+.bookingCustomer{white-space:normal;min-width:140px}
+.bookingCustomer b{display:block}
+.bookingRider{white-space:normal;min-width:190px}
+.bookingRider .riderProfile{min-width:0}
+@media(max-width:800px){.bookingFilters{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.bookingFilters{grid-template-columns:1fr}}
+.adminAction select{min-width:0;flex:1;width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:13px}.adminAction .btn{padding:9px 12px;font-size:13px;white-space:nowrap}
 @media(max-width:640px){
  #admin .tableWrap{overflow:visible}
  #admin .tableWrap table,#admin .tableWrap tbody{display:block;width:100%}
@@ -190,7 +205,17 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="stat"><strong id="aRevenue">KSh 0</strong>Total recorded paid revenue</div>
     <div class="stat"><strong id="aPending">—</strong>Pending payments</div>
    </div>
-   <div class="card" style="margin-top:18px"><h3>Recent bookings</h3><div class="tableWrap"><table><thead><tr><th>Booking ref</th><th>Date</th><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Ride status</th><th>Payment</th><th>Admin action</th></tr></thead><tbody id="tripTable"><tr><td colspan="9">Loading…</td></tr></tbody></table></div></div>
+   <div class="card" style="margin-top:18px" id="bookingManagement">
+    <div class="sectionHead"><h3>Booking Management</h3><p class="muted">Search, filter and manage customer bookings, payments and rider assignments.</p></div>
+    <div class="bookingFilters">
+     <div class="field"><label for="bookingSearch">Search bookings</label><input id="bookingSearch" type="search" placeholder="Booking ref, customer, phone, pickup or destination" oninput="renderAdminBookings()"></div>
+     <div class="field"><label for="bookingStatusFilter">Ride status</label><select id="bookingStatusFilter" onchange="renderAdminBookings()"><option value="">All ride statuses</option><option value="requested">Awaiting rider</option><option value="accepted">Accepted</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+     <div class="field"><label for="bookingPaymentFilter">Payment status</label><select id="bookingPaymentFilter" onchange="renderAdminBookings()"><option value="">All payment statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="unpaid">Unpaid</option><option value="failed">Failed</option><option value="not_required">Not required</option></select></div>
+     <div class="field"><label for="bookingServiceFilter">Service</label><select id="bookingServiceFilter" onchange="renderAdminBookings()"><option value="">All services</option><option value="ride">Motorcycle ride</option><option value="parcel">Parcel delivery</option><option value="express">Express delivery</option></select></div>
+    </div>
+    <div class="bookingToolbar"><b id="bookingResultCount" class="muted">Loading bookings…</b><button class="btn light" type="button" onclick="clearBookingFilters()">Clear filters</button></div>
+    <div class="tableWrap"><table><thead><tr><th>Booking ref</th><th>Date</th><th>Customer</th><th>Customer phone</th><th>Pickup</th><th>Destination</th><th>Service</th><th>Fare</th><th>Ride status</th><th>Payment</th><th>Assigned rider / action</th></tr></thead><tbody id="tripTable"><tr><td colspan="11">Loading…</td></tr></tbody></table></div>
+   </div>
    <div class="card" style="margin-top:18px"><h3>Rider verification & operations</h3><p class="muted">Review rider identity and motorcycle details before approval. Approved riders can go online and accept bookings.</p><div class="tableWrap"><table><thead><tr><th>Rider profile</th><th>National ID</th><th>Motorcycle</th><th>Registration</th><th>Verification</th><th>Online</th><th>Admin review</th></tr></thead><tbody id="riderTable"><tr><td colspan="7">Loading…</td></tr></tbody></table></div></div>
    <div class="card" style="margin-top:18px"><h3>Recent payments</h3><div class="tableWrap"><table><thead><tr><th>Date</th><th>Method</th><th>Amount</th><th>Status</th><th>M-Pesa receipt</th></tr></thead><tbody id="paymentTable"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></div>
   </div>
@@ -580,6 +605,45 @@ async function completeTrip(){
  loadMyBookings();
 }
 function declineTrip(){document.getElementById('riderMsg').className='notice';document.getElementById('riderMsg').textContent='Trip declined.'}
+function clearBookingFilters(){
+ ['bookingSearch','bookingStatusFilter','bookingPaymentFilter','bookingServiceFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+ renderAdminBookings();
+}
+function renderAdminBookings(){
+ const body=document.getElementById('tripTable');
+ if(!body)return;
+ const rides=window.adminRides||[];
+ const riders=window.adminAvailableRiders||[];
+ const search=(document.getElementById('bookingSearch')?.value||'').trim().toLowerCase();
+ const status=document.getElementById('bookingStatusFilter')?.value||'';
+ const payment=document.getElementById('bookingPaymentFilter')?.value||'';
+ const service=document.getElementById('bookingServiceFilter')?.value||'';
+ const filtered=rides.filter(x=>{
+  const haystack=[x.id,x.customer_name,x.customer_phone,x.pickup_location,x.destination,x.rider_name,x.rider_phone,x.rider_plate,x.service_type,x.status,x.payment_status].join(' ').toLowerCase();
+  return (!search||haystack.includes(search))&&(!status||x.status===status)&&(!payment||x.payment_status===payment)&&(!service||x.service_type===service);
+ });
+ const count=document.getElementById('bookingResultCount');
+ if(count)count.textContent='Showing '+filtered.length+' of '+rides.length+' bookings';
+ if(!filtered.length){body.innerHTML='<tr><td colspan="11">'+(rides.length?'No bookings match these filters.':'No bookings have been created yet.')+'</td></tr>';return;}
+ const money=n=>'KSh '+Number(n||0).toLocaleString('en-KE',{maximumFractionDigits:2});
+ body.innerHTML=filtered.map(x=>{
+  const actions=[];
+  const canAssign=x.status==='requested'&&!x.rider_id&&(!(String(x.payment_method||'').toLowerCase().replace(/-/g,'')==='mpesa')||x.payment_status==='paid');
+  if(canAssign)riders.filter(r=>r.is_online&&r.is_available).forEach(r=>actions.push({value:'rider:'+r.id,label:'Assign: '+(r.full_name||r.motorcycle_plate||'Rider')}));
+  if(x.status==='requested')actions.push({value:'status:cancelled',label:'Cancel booking'});
+  if(x.status==='accepted'){actions.push({value:'status:in_progress',label:'Start ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
+  if(x.status==='in_progress'){actions.push({value:'status:completed',label:'Complete ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
+  const actionControl=actions.length?'<div class="adminAction"><select id="rideAction_'+x.id+'" aria-label="Action for booking '+String(x.id).slice(0,8)+'"><option value="">Choose action</option>'+actions.map(a=>'<option value="'+escapeHtml(a.value)+'">'+escapeHtml(a.label)+'</option>').join('')+'</select><button class="btn green" type="button" onclick="adminManageRide(\''+x.id+'\')">Apply</button></div>':'<span class="muted">No actions</span>';
+  const customer='<div class="bookingCustomer"><b>'+escapeHtml(x.customer_name||'Name not provided')+'</b><small>'+escapeHtml(String(x.customer_id||'').slice(0,8))+'</small></div>';
+  const customerPhone=x.customer_phone?'<a href="tel:'+escapeHtml(x.customer_phone)+'">'+escapeHtml(x.customer_phone)+'</a>':'Not provided';
+  const rider=x.rider_id?'<div class="bookingRider"><b>'+escapeHtml(x.rider_name||'Assigned rider')+'</b><br>'+(x.rider_phone?'<a href="tel:'+escapeHtml(x.rider_phone)+'">'+escapeHtml(x.rider_phone)+'</a>':'Phone unavailable')+'<details class="riderProfile"><summary>Full rider profile</summary><div class="riderProfileGrid"><div><b>Motorcycle</b><span>'+escapeHtml(x.rider_motorcycle||'Not provided')+'</span></div><div><b>Registration</b><span>'+escapeHtml(x.rider_plate||'Not provided')+'</span></div><div><b>National ID number</b><span>'+escapeHtml(x.rider_identification_number||'Not provided')+'</span></div><div><b>Rating</b><span>'+(x.rider_rating==null?'Not rated':escapeHtml(String(x.rider_rating)))+'</span></div><div><b>Online / available</b><span>'+(x.rider_online?'Online':'Offline')+' / '+(x.rider_available?'Available':'Busy or unavailable')+'</span></div><div><b>Last GPS update</b><span>'+(x.rider_location_updated_at?new Date(x.rider_location_updated_at).toLocaleString('en-KE'):'Not shared')+'</span></div><div><b>Current location</b><span>'+(x.rider_latitude!=null&&x.rider_longitude!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+encodeURIComponent(x.rider_latitude+','+x.rider_longitude)+'">Open rider map</a>':'Unavailable')+'</span></div></div></details></div>':'<span class="muted">Not assigned</span>';
+  const statusPill='<span class="bookingStatus '+escapeHtml(x.status||'')+'">'+escapeHtml((x.status||'unknown').replace(/_/g,' '))+'</span>';
+  const paymentPill='<span class="bookingStatus '+escapeHtml(x.payment_status||'')+'">'+escapeHtml(x.payment_status||'unknown')+'</span><br><small>'+escapeHtml(x.payment_method||'')+'</small>';
+  const date=x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—';
+  const ref=String(x.id||'').slice(0,8).toUpperCase();
+  return '<tr><td data-label="Booking ref"><b>'+escapeHtml(ref)+'</b></td><td data-label="Date">'+escapeHtml(date)+'</td><td data-label="Customer">'+customer+'</td><td data-label="Customer phone">'+customerPhone+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location||'—')+'</td><td data-label="Destination">'+escapeHtml(x.destination||'—')+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+statusPill+'</td><td data-label="Payment">'+paymentPill+'</td><td data-label="Assigned rider / action">'+rider+actionControl+'</td></tr>';
+ }).join('');
+}
 async function renderAdmin(){
  const msg=document.getElementById('adminMsg');
  const {data:{user},error:authError}=await supabaseClient.auth.getUser();
@@ -611,17 +675,9 @@ async function renderAdmin(){
  document.getElementById('aUnpaid').textContent=Number(summary.unpaid_bookings||0).toLocaleString('en-KE');
  document.getElementById('aRevenue').textContent=money(summary.paid_revenue);
  document.getElementById('aPending').textContent=Number(summary.pending_payments||0).toLocaleString('en-KE');
- document.getElementById('tripTable').innerHTML=rides.length?rides.map(x=>{
-  const actions=[];
-  const canAssign=x.status==='requested'&&!x.rider_id&&(!(String(x.payment_method||'').toLowerCase().replace(/-/g,'' )==='mpesa')||x.payment_status==='paid');
-  if(canAssign) riders.filter(r=>r.is_online&&r.is_available).forEach(r=>actions.push({value:'rider:'+r.id,label:'Assign: '+(r.full_name||r.motorcycle_plate||'Rider')}));
-  if(x.status==='requested') actions.push({value:'status:cancelled',label:'Cancel booking'});
-  if(x.status==='accepted') {actions.push({value:'status:in_progress',label:'Start ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
-  if(x.status==='in_progress') {actions.push({value:'status:completed',label:'Complete ride'});actions.push({value:'status:cancelled',label:'Cancel booking'});}
-  const actionControl=actions.length?'<div class="adminAction"><select id="rideAction_'+x.id+'" aria-label="Action for booking '+String(x.id).slice(0,8)+'"><option value="">Choose action</option>'+actions.map(a=>'<option value="'+escapeHtml(a.value)+'">'+escapeHtml(a.label)+'</option>').join('')+'</select><button class="btn green" type="button" onclick="adminManageRide(\''+x.id+'\')">Apply</button></div>':'<span class="muted">No actions</span>';
-  const riderProfile=x.rider_id?'<details class="riderProfile"><summary>View assigned rider profile</summary><div class="riderProfileGrid"><div><b>Full name</b><span>'+escapeHtml(x.rider_name||'Not provided')+'</span></div><div><b>Phone</b><span>'+(x.rider_phone?'<a href="tel:'+escapeHtml(x.rider_phone)+'">'+escapeHtml(x.rider_phone)+'</a>':'Not provided')+'</span></div><div><b>Motorcycle</b><span>'+escapeHtml(x.rider_motorcycle||'Not provided')+'</span></div><div><b>Number plate</b><span>'+escapeHtml(x.rider_plate||'Not provided')+'</span></div><div><b>National ID number</b><span>'+(x.rider_identification_number?escapeHtml(x.rider_identification_number):'MISSING — rider must update profile')+'</span></div><div><b>Rider rating</b><span>'+(x.rider_rating==null?'Not rated':escapeHtml(String(x.rider_rating)))+'</span></div><div><b>Online / available</b><span>'+(x.rider_online?'Online':'Offline')+' / '+(x.rider_available?'Available':'On a ride or unavailable')+'</span></div><div><b>Last location update</b><span>'+(x.rider_location_updated_at?new Date(x.rider_location_updated_at).toLocaleString('en-KE'):'Not shared yet')+'</span></div><div><b>Current location</b><span>'+(x.rider_latitude!=null&&x.rider_longitude!=null?'<a target="_blank" rel="noopener" href="https://www.google.com/maps?q='+encodeURIComponent(x.rider_latitude+','+x.rider_longitude)+'">View rider on map</a>':'Location unavailable')+'</span></div></div></details>':'';
-  return '<tr><td data-label="Booking ref">'+escapeHtml(String(x.id||'').slice(0,8).toUpperCase())+'</td><td data-label="Date">'+(x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—')+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location)+'</td><td data-label="Destination">'+escapeHtml(x.destination)+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+escapeHtml(x.status||'—')+'</td><td data-label="Payment">'+escapeHtml(x.payment_status||'—')+'</td><td data-label="Admin action">'+actionControl+'</td></tr>'+(riderProfile?'<tr class="riderProfileRow"><td colspan="9">'+riderProfile+'</td></tr>':'');
- }).join(''):'<tr><td colspan="9">No bookings yet.</td></tr>';
+ window.adminRides=rides;
+ window.adminAvailableRiders=riders;
+ renderAdminBookings();
  document.getElementById('riderTable').innerHTML=riders.length?riders.map(x=>{
   const status=x.verification_status||'pending';
   const actions=status==='approved'?'<button class="btn light" type="button" onclick="adminReviewRider(\''+x.id+'\',\'rejected\')">Suspend / reject</button>':status==='rejected'?'<button class="btn green" type="button" onclick="adminReviewRider(\''+x.id+'\',\'approved\')">Approve</button>':'<button class="btn green" type="button" onclick="adminReviewRider(\''+x.id+'\',\'approved\')">Approve rider</button><button class="btn light" type="button" onclick="adminReviewRider(\''+x.id+'\',\'rejected\')">Reject</button>';
