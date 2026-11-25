@@ -545,7 +545,7 @@ function updateCustomerLiveMap(details){
  }
 }
 async function refreshCustomerRide(id){
- const {data,error}=await supabaseClient.from('rides').select('status').eq('id',id).maybeSingle();
+ const {data,error}=await supabaseClient.from('rides').select('status,payment_status').eq('id',id).maybeSingle();
  if(error||!data)return;
  const name=document.getElementById('riderName'),eta=document.getElementById('eta'),msg=document.getElementById('bookmsg');
  if(['accepted','in_progress','arrived','started','completed'].includes(data.status)){
