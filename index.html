@@ -169,6 +169,10 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <button class="btn green" id="toggleOnlineBtn" onclick="toggleOnline(this)">Go online</button>
     <div id="onlineMsg" class="notice">Offline</div>
     <div id="riderSubscriptionMsg" class="notice" style="margin-top:10px">Loading rider subscription status…</div>
+    <div id="riderSubscriptionPayment" class="hidden" style="margin-top:10px">
+     <div class="field"><label for="riderSubscriptionPhone">M-Pesa phone number</label><input id="riderSubscriptionPhone" type="tel" placeholder="0712345678" autocomplete="tel"></div>
+     <button class="btn green" type="button" onclick="payRiderSubscription()">Pay KSh 200 subscription with M-Pesa</button>
+    </div>
 
    </div>
    <div class="card">
@@ -641,6 +645,15 @@ async function loadRiderProfile(){
  const msg=document.getElementById('onlineMsg'); if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
 }
 
+async function payRiderSubscription(){
+ const box=document.getElementById('riderSubscriptionMsg');
+ const phone=document.getElementById('riderSubscriptionPhone')?.value?.trim();
+ if(!phone){box.className='notice error';box.textContent='Enter the M-Pesa phone number to receive the payment prompt.';return;}
+ box.className='notice';box.textContent='Requesting KSh 200 M-Pesa subscription prompt…';
+ const {data,error}=await supabaseClient.functions.invoke('mpesa-subscription-stk',{body:{phoneNumber:phone}});
+ if(error||data?.error){box.className='notice error';box.textContent=data?.error||error.message||'Could not start subscription payment.';return;}
+ box.className='notice';box.textContent='M-Pesa prompt sent. Approve KSh 200 on your phone, then refresh subscription status.';
+}
 async function loadRiderSubscription(){
  const box=document.getElementById('riderSubscriptionMsg');if(!box)return;
  const {data,error}=await supabaseClient.rpc('get_my_motoride_subscription');
@@ -656,7 +669,8 @@ async function loadRiderSubscription(){
   box.textContent='Subscription active. KSh 200/month'+(s.paid_until?' • paid until '+new Date(s.paid_until).toLocaleDateString('en-KE'):'')+'.';
  }else{
   box.className='notice error';
-  box.textContent='Subscription required: KSh 200 per month. Payment is not yet connected; contact MotoRide admin to renew. You cannot go online until active.';
+  box.textContent='Subscription required: KSh 200 per month. Pay by M-Pesa to reactivate rider availability.';
+  const paymentBox=document.getElementById('riderSubscriptionPayment');if(paymentBox)paymentBox.classList.remove('hidden');
  }
 }
 async function toggleOnline(btn){
