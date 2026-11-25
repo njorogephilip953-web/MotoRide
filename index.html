@@ -106,7 +106,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
 <section>
  <div class="wrap stats">
   <div class="stat"><strong>24/7</strong>Online bookings</div>
-  <div class="stat"><strong>15%</strong>15% platform commission</div>
+  <div class="stat"><strong>10%</strong>10% platform commission</div>
   <div class="stat"><strong>M-Pesa</strong>Payment target</div>
   <div class="stat"><strong>Kenya</strong>Built for local use</div>
  </div>
@@ -136,9 +136,7 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="field"><label>Service</label>
       <select id="service"><option value="ride">Motorcycle Ride</option><option value="parcel">Parcel Delivery</option><option value="express">Express Delivery</option></select>
     </div>
-    <div class="field"><label>Payment method</label>
-      <select id="pay" onchange="toggleMpesaPhone()"><option>M-Pesa</option><option>Cash</option></select>
-    </div>
+    <div class="field"><label>Payment method</label><input id="pay" type="text" value="M-Pesa" readonly aria-readonly="true"><small class="muted">MotoRide accepts M-Pesa payments only.</small></div>
     <div class="field" id="mpesaPhoneField"><label>M-Pesa phone number</label><input id="mpesaPhone" type="tel" inputmode="tel" placeholder="07XXXXXXXX" autocomplete="tel"><small class="muted">Sandbox testing uses the test phone number shown in your Daraja test credentials.</small></div>
     <button class="btn green" style="width:100%" onclick="estimateAndRequest()">Estimate & request</button>
     <div id="bookmsg"></div>
@@ -213,6 +211,10 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <div class="stat"><strong id="aUnpaid">—</strong>Unpaid bookings</div>
     <div class="stat"><strong id="aRevenue">KSh 0</strong>Total recorded paid revenue</div>
     <div class="stat"><strong id="aPending">—</strong>Pending payments</div>
+    <div class="stat"><strong id="aCommission">KSh 0</strong>MotoRide commission (10%)</div>
+    <div class="stat"><strong id="aRiderEarnings">KSh 0</strong>Rider earnings after commission</div>
+    <div class="stat"><strong id="aCommissionTrips">0</strong>Trips with commission recorded</div>
+    <div class="stat"><strong>KSh 0</strong>Mandatory rider subscription for first 3 launch months</div>
    </div>
    <div class="card" style="margin-top:18px" id="bookingManagement">
     <div class="sectionHead"><h3>Booking Management</h3><p class="muted">Search, filter and manage customer bookings, payments and rider assignments.</p></div>
@@ -383,7 +385,7 @@ async function capturePickupLocation(){
 }
 function toggleMpesaPhone(){
  const field=document.getElementById('mpesaPhoneField');
- if(field)field.style.display=document.getElementById('pay').value==='M-Pesa'?'block':'none';
+ if(field)field.style.display='block';
 }
 toggleMpesaPhone();
 
@@ -405,7 +407,7 @@ async function estimateAndRequest(){
  if(!customerName||!customerPhone){msg.className='notice error';msg.textContent='Enter your full name and phone number so the rider and MotoRide administrator can identify your booking.';return}
  if(!/^[+0-9][0-9\\s-]{7,14}$/.test(customerPhone)){msg.className='notice error';msg.textContent='Enter a valid phone number, for example 0712345678.';return}
  const service=document.getElementById('service').value;
- const payment=document.getElementById('pay').value;
+ const payment='M-Pesa';
  const fare=estimateFare();
  const mpesaPhone=document.getElementById('mpesaPhone')?.value.trim()||'';
  if(payment==='M-Pesa'&&!mpesaPhone){msg.className='notice error';msg.textContent='Enter the M-Pesa phone number to receive the payment prompt.';return}
@@ -439,7 +441,7 @@ async function estimateAndRequest(){
  }
  document.getElementById('riderName').textContent='Searching for a rider…';
  document.getElementById('eta').textContent='3–7 min';
- msg.className='notice';msg.textContent=payment==='M-Pesa'?'M-Pesa prompt sent. Complete the payment on your phone. Rider matching starts after payment is confirmed.':'Booking confirmed. Your request is now visible to the MotoRide system.';
+ msg.className='notice';msg.textContent='M-Pesa prompt sent. Complete the payment on your phone. Rider matching starts after payment is confirmed.';
  await loadMyBookings();
  startRideWatcher(data.id);
 }
@@ -758,9 +760,7 @@ function renderAdminBookings(){
   const statusPill='<span class="bookingStatus '+escapeHtml(x.status||'')+'">'+escapeHtml((x.status||'unknown').replace(/_/g,' '))+'</span>';
   const paymentState=x.latest_payment_status||x.payment_status||'unknown';
   const paymentExtra=x.latest_mpesa_receipt?'<br><small>Receipt: '+escapeHtml(x.latest_mpesa_receipt)+'</small>':(x.latest_payment_result?'<br><small>'+escapeHtml(x.latest_payment_result)+'</small>':'');
-  const canRecordCash=String(x.payment_method||'').toLowerCase().replace(/[-\s]/g,'')==='cash'&&String(x.status||'').toLowerCase()==='completed'&&String(x.payment_status||'').toLowerCase()!=='paid'&&String(x.latest_payment_status||'').toLowerCase()!=='paid';
-  const cashControl=canRecordCash?`<br><button class="btn green" style="margin-top:7px;padding:8px 10px;font-size:12px" type="button" onclick="adminRecordCash('${x.id}')">Record cash received</button>`:'';
-  const paymentPill='<span class="bookingStatus '+escapeHtml(paymentState)+'">'+escapeHtml(paymentState)+'</span><br><small>'+escapeHtml(x.payment_method||'')+'</small>'+paymentExtra+cashControl;
+  const paymentPill='<span class="bookingStatus '+escapeHtml(paymentState)+'">'+escapeHtml(paymentState)+'</span><br><small>M-Pesa</small>'+paymentExtra;
   const date=x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—';
   const ref=String(x.id||'').slice(0,8).toUpperCase();
   return '<tr><td data-label="Booking ref"><b>'+escapeHtml(ref)+'</b></td><td data-label="Date">'+escapeHtml(date)+'</td><td data-label="Customer">'+customer+'</td><td data-label="Customer phone">'+customerPhone+'</td><td data-label="Pickup">'+escapeHtml(x.pickup_location||'—')+'</td><td data-label="Destination">'+escapeHtml(x.destination||'—')+'</td><td data-label="Service">'+escapeHtml(x.service_type||'ride')+'</td><td data-label="Fare">'+money(x.fare)+'</td><td data-label="Ride status">'+statusPill+'</td><td data-label="Payment">'+paymentPill+'</td><td data-label="Assigned rider / action">'+rider+actionControl+'</td></tr>';
@@ -784,6 +784,8 @@ async function renderAdmin(){
   return;
  }
  const summary=data?.summary||{};
+ const {data:commissionSummary,error:commissionError}=await supabaseClient.rpc('get_motoride_commission_summary');
+ if(commissionError){msg.className='notice error';msg.textContent='Dashboard loaded, but commission totals could not be loaded: '+commissionError.message;return;}
  const rides=data?.rides||[];
  const riders=data?.riders||[];
  const payments=data?.payments||[];
@@ -800,6 +802,9 @@ async function renderAdmin(){
  document.getElementById('aUnpaid').textContent=Number(summary.unpaid_bookings||0).toLocaleString('en-KE');
  document.getElementById('aRevenue').textContent=money(summary.paid_revenue);
  document.getElementById('aPending').textContent=Number(summary.pending_payments||0).toLocaleString('en-KE');
+ document.getElementById('aCommission').textContent=money(commissionSummary?.commission_total||0);
+ document.getElementById('aRiderEarnings').textContent=money(commissionSummary?.rider_earnings_total||0);
+ document.getElementById('aCommissionTrips').textContent=Number(commissionSummary?.commissioned_trips||0).toLocaleString('en-KE');
  window.adminRides=rides;
  window.adminAvailableRiders=riders;
  renderAdminBookings();
@@ -828,18 +833,6 @@ async function adminReviewRider(riderId,decision){
  const {error}=await supabaseClient.rpc('admin_review_motoride_rider',{p_rider_id:riderId,p_decision:decision,p_note:note||null});
  if(error){msg.className='notice error';msg.textContent='Rider review failed: '+error.message;return;}
  msg.className='notice success';msg.textContent='Rider '+decision+'. Refreshing administrator dashboard…';
- await renderAdmin();
-}
-async function adminRecordCash(rideId){
- const ride=(window.adminRides||[]).find(x=>x.id===rideId);
- if(!ride){alert('Booking not found in the current dashboard. Refresh and try again.');return;}
- const amount=Number(ride.fare||0).toLocaleString('en-KE');
- if(!window.confirm('Confirm that you have physically received KSh '+amount+' in cash for this completed trip? Only confirm after receiving the cash.'))return;
- const msg=document.getElementById('adminMsg');
- msg.className='notice';msg.textContent='Recording cash payment…';
- const {data,error}=await supabaseClient.rpc('admin_record_cash_payment',{p_ride_id:rideId});
- if(error){msg.className='notice error';msg.textContent='Cash payment was not recorded: '+error.message;return;}
- msg.className='notice';msg.textContent='Cash payment of KSh '+Number(data?.amount||ride.fare||0).toLocaleString('en-KE')+' recorded. Refreshing dashboard…';
  await renderAdmin();
 }
 async function adminManageRide(rideId){
