@@ -184,6 +184,10 @@ footer{background:var(--dark);color:#cbd5e1;padding:38px 5%}.footerGrid{display:
     <button class="btn green hidden" id="completeTripBtn" onclick="completeTrip()">Complete trip</button>
     <button class="btn light hidden" id="declineTripBtn" onclick="declineTrip()">Decline</button>
     <div id="riderMsg"></div>
+    <h4 style="margin-top:18px">Customer location map</h4>
+    <div id="riderCustomerMap" class="live-map" role="img" aria-label="Map showing paid customer's pickup and rider's current GPS location"></div>
+    <p id="riderCustomerMapMsg" class="muted" aria-live="polite">A customer's pickup location will appear here when a paid booking is available.</p>
+    <button class="btn light hidden" id="openCustomerMapBtn" type="button" onclick="openCustomerDirections()">Navigate to customer</button>
    </div>
   </div>
  </div>
@@ -632,7 +636,7 @@ async function loadRiderProfile(){
  document.getElementById('rmodel').value=data.motorcycle_model||'';document.getElementById('reg').value=data.motorcycle_plate||'';document.getElementById('ridnumber').value=data.identification_number||'';
  online=!!data.is_online;
  if(online)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
- const {data:activeRide}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,status').eq('rider_id',user.id).in('status',['accepted','in_progress','arrived','started']).order('accepted_at',{ascending:false}).limit(1).maybeSingle();
+ const {data:activeRide}=await supabaseClient.from('rides').select('id,pickup_location,destination,fare,status,pickup_latitude,pickup_longitude,destination_latitude,destination_longitude').eq('rider_id',user.id).in('status',['accepted','in_progress','arrived','started']).order('accepted_at',{ascending:false}).limit(1).maybeSingle();
  window.currentActiveRide=activeRide?.id||null;
  // Keep GPS tracking during an active trip even though the rider is offline for matching.
  if(online||activeRide)startRiderLocationTracking(user.id);else stopRiderLocationTracking();
@@ -641,7 +645,7 @@ async function loadRiderProfile(){
  document.getElementById('declineTripBtn').classList.add('hidden');
  document.getElementById('acceptTripBtn').classList.toggle('hidden',!!activeRide);
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=!!activeRide;onlineBtn.textContent=activeRide?'Busy — trip in progress':(online?'Go offline':'Go online');}
- if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';}
+ if(activeRide){document.getElementById('rpick').textContent=activeRide.pickup_location;document.getElementById('rdest').textContent=activeRide.destination;document.getElementById('rfare').textContent='KSh '+Number(activeRide.fare||0);document.getElementById('riderMsg').textContent='Trip in progress. You are unavailable for new bookings.';renderRiderCustomerMap(activeRide,true);}else clearRiderCustomerMap();
  const msg=document.getElementById('onlineMsg'); if(msg)msg.textContent=data.verification_status==='approved'?(activeRide?'Trip in progress — GPS active, unavailable for new bookings':(online?'Online — GPS active, searching for nearby trips':'Approved — offline')):data.verification_status==='rejected'?'Profile rejected: '+(data.verification_note||'Please contact MotoRide support.'):'Profile submitted — awaiting MotoRide administrator approval. You cannot go online yet.';
 }
 
@@ -700,6 +704,59 @@ async function toggleOnline(btn){
  m.className='notice';m.textContent=online?'Online — GPS active, searching for nearby trips':'Offline';
  if(online)loadIncomingTrip();
 }
+
+let riderCustomerMap=null,riderPickupMarker=null,riderSelfMarker=null,riderRouteLine=null,riderDestinationMarker=null;
+let riderCustomerPoint=null,riderDestinationPoint=null;
+function renderRiderCustomerMap(ride,active=false){
+ const el=document.getElementById('riderCustomerMap'),msg=document.getElementById('riderCustomerMapMsg');
+ if(!el||!msg)return;
+ const lat=Number(ride?.pickup_latitude),lng=Number(ride?.pickup_longitude);
+ if(!Number.isFinite(lat)||!Number.isFinite(lng)||ride?.pickup_latitude==null||ride?.pickup_longitude==null){
+  msg.textContent='Customer pickup GPS coordinates are not available for this booking.';
+  return;
+ }
+ riderCustomerPoint=[lat,lng];
+ const dlat=Number(ride?.destination_latitude),dlng=Number(ride?.destination_longitude);
+ riderDestinationPoint=Number.isFinite(dlat)&&Number.isFinite(dlng)&&ride?.destination_latitude!=null&&ride?.destination_longitude!=null?[dlat,dlng]:null;
+ if(!window.L){msg.textContent='Map could not load. You can still open directions using the button.';return;}
+ if(!riderCustomerMap){
+  riderCustomerMap=L.map(el,{scrollWheelZoom:false}).setView(riderCustomerPoint,15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(riderCustomerMap);
+ }
+ if(!riderPickupMarker)riderPickupMarker=L.marker(riderCustomerPoint).addTo(riderCustomerMap).bindPopup('Customer pickup location');
+ else riderPickupMarker.setLatLng(riderCustomerPoint);
+ if(riderDestinationPoint){
+  if(!riderDestinationMarker)riderDestinationMarker=L.marker(riderDestinationPoint).addTo(riderCustomerMap).bindPopup('Trip destination');
+  else riderDestinationMarker.setLatLng(riderDestinationPoint);
+ }else if(riderDestinationMarker){riderCustomerMap.removeLayer(riderDestinationMarker);riderDestinationMarker=null;}
+ const self=window.riderCurrentGps;
+ if(self&&Number.isFinite(self.lat)&&Number.isFinite(self.lng)){
+  const here=[self.lat,self.lng];
+  if(!riderSelfMarker)riderSelfMarker=L.circleMarker(here,{radius:8,color:'#2563eb',fillColor:'#3b82f6',fillOpacity:1}).addTo(riderCustomerMap).bindPopup('Your current GPS location');
+  else riderSelfMarker.setLatLng(here);
+  const points=[here,riderCustomerPoint];
+  if(!riderRouteLine)riderRouteLine=L.polyline(points,{color:'#2563eb',weight:4,dashArray:'6 7'}).addTo(riderCustomerMap);
+  else riderRouteLine.setLatLngs(points);
+  riderCustomerMap.fitBounds(L.latLngBounds(points),{padding:[35,35],maxZoom:16});
+ }else riderCustomerMap.setView(riderCustomerPoint,15);
+ const btn=document.getElementById('openCustomerMapBtn');if(btn)btn.classList.remove('hidden');
+ msg.textContent=active?'Active trip: customer pickup and your latest GPS position. GPS continues updating while you are on the trip.':'Paid customer pickup shown on the map. Accept the booking to start the trip.';
+ setTimeout(()=>riderCustomerMap?.invalidateSize(),100);
+}
+function openCustomerDirections(){
+ if(!riderCustomerPoint)return;
+ const dest=riderCustomerPoint.join(',');
+ const origin=window.riderCurrentGps?window.riderCurrentGps.lat+','+window.riderCurrentGps.lng:'';
+ const url='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)+(origin?'&origin='+encodeURIComponent(origin):'')+'&travelmode=driving';
+ window.open(url,'_blank','noopener');
+}
+function clearRiderCustomerMap(){
+ riderCustomerPoint=null;riderDestinationPoint=null;
+ if(riderCustomerMap){riderCustomerMap.remove();riderCustomerMap=null;}
+ riderPickupMarker=null;riderSelfMarker=null;riderRouteLine=null;riderDestinationMarker=null;
+ const msg=document.getElementById('riderCustomerMapMsg');if(msg)msg.textContent='A customer pickup location will appear here when a paid booking is available.';
+ const btn=document.getElementById('openCustomerMapBtn');if(btn)btn.classList.add('hidden');
+}
 let riderTimer=null;
 async function loadIncomingTrip(){
  if(window.currentActiveRide){return;}
@@ -710,6 +767,7 @@ async function loadIncomingTrip(){
  document.getElementById('rpick').textContent=ride?ride.pickup_location:'No nearby trip yet';
  document.getElementById('rdest').textContent=ride?ride.destination:'—';
  document.getElementById('rfare').textContent=ride?'KSh '+Number(ride.fare||0):'KSh —';
+ if(ride)renderRiderCustomerMap(ride,false);else clearRiderCustomerMap();
  window.currentIncomingRide=ride?ride.ride_id:null;
  document.getElementById('declineTripBtn').classList.toggle('hidden',!ride);
  if(ride)document.getElementById('riderMsg').textContent='Nearest request: '+Number(ride.distance_km||0).toFixed(2)+' km away.';
@@ -720,6 +778,8 @@ function startRiderLocationTracking(userId){
  riderGeoWatchId=navigator.geolocation.watchPosition(async pos=>{
   if(Date.now()-lastRiderLocationWrite<15000)return;
   lastRiderLocationWrite=Date.now();
+  window.riderCurrentGps={lat:pos.coords.latitude,lng:pos.coords.longitude};
+  if(riderCustomerPoint)renderRiderCustomerMap({pickup_latitude:riderCustomerPoint[0],pickup_longitude:riderCustomerPoint[1],destination_latitude:riderDestinationPoint?.[0],destination_longitude:riderDestinationPoint?.[1]},!!window.currentActiveRide);
   const {error}=await supabaseClient.from('riders').update({
    current_latitude:pos.coords.latitude,current_longitude:pos.coords.longitude,
    location_updated_at:new Date().toISOString()
@@ -751,6 +811,7 @@ async function acceptTrip(){
  const {data,error}=await supabaseClient.rpc('accept_requested_ride',{ride_id:id});
  if(error){m.className='notice error';m.textContent=error.message;return}
  window.currentActiveRide=data.id;window.currentIncomingRide=null;
+ renderRiderCustomerMap(data,true);
  document.getElementById('rpick').textContent=data.pickup_location;document.getElementById('rdest').textContent=data.destination;document.getElementById('rfare').textContent='KSh '+Number(data.fare||0);
  document.getElementById('completeTripBtn').classList.remove('hidden');document.getElementById('acceptTripBtn').classList.add('hidden');document.getElementById('declineTripBtn').classList.add('hidden');
  const onlineBtn=document.getElementById('toggleOnlineBtn');if(onlineBtn){onlineBtn.disabled=true;onlineBtn.textContent='Busy — trip in progress';}
@@ -765,6 +826,7 @@ async function completeTrip(){
  const {data,error}=await supabaseClient.rpc('complete_assigned_ride',{ride_id:window.currentActiveRide});
  if(error){m.className='notice error';m.textContent=error.message;return}
  window.currentActiveRide=null;
+ clearRiderCustomerMap();
  online=true;
  const {data:{user}}=await supabaseClient.auth.getUser();
  if(user)startRiderLocationTracking(user.id);
