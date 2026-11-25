@@ -286,6 +286,7 @@ let customerLiveMap=null;
 let customerPickupMarker=null;
 let customerRiderMarker=null;
 let customerRideLine=null;
+let customerWatchedRideId=null;
 
 function go(id){
  document.querySelectorAll('main,section[id]').forEach(x=>x.classList.add('hidden'));
@@ -448,6 +449,13 @@ async function loadMyBookings(){
  if(!user)return;
  const {data,error}=await supabaseClient.from('rides').select('id,pickup_location,destination,service_type,payment_method,payment_status,fare,status,created_at').eq('customer_id',user.id).order('created_at',{ascending:false}).limit(10);
  if(error)return;
+ const activeBooking=(data||[]).find(r=>['requested','accepted','in_progress','arrived','started'].includes(r.status));
+ if(activeBooking&&customerWatchedRideId!==activeBooking.id)startRideWatcher(activeBooking.id);
+ if(!activeBooking&&customerWatchedRideId){
+  if(rideTimer)clearInterval(rideTimer);
+  if(rideRealtimeChannel){supabaseClient.removeChannel(rideRealtimeChannel);rideRealtimeChannel=null;}
+  customerWatchedRideId=null;
+ }
  const list=document.getElementById('myBookings');
  if(!list)return;
  const cards=await Promise.all((data||[]).map(async r=>{
@@ -560,6 +568,8 @@ async function refreshCustomerRide(id){
  await loadMyBookings();
 }
 function startRideWatcher(id){
+ if(customerWatchedRideId===id)return;
+ customerWatchedRideId=id;
  if(rideTimer)clearInterval(rideTimer);
  if(rideRealtimeChannel){supabaseClient.removeChannel(rideRealtimeChannel);rideRealtimeChannel=null}
  rideRealtimeChannel=supabaseClient.channel('customer-ride-'+id)
