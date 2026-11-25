@@ -758,8 +758,8 @@ function renderAdminBookings(){
   const statusPill='<span class="bookingStatus '+escapeHtml(x.status||'')+'">'+escapeHtml((x.status||'unknown').replace(/_/g,' '))+'</span>';
   const paymentState=x.latest_payment_status||x.payment_status||'unknown';
   const paymentExtra=x.latest_mpesa_receipt?'<br><small>Receipt: '+escapeHtml(x.latest_mpesa_receipt)+'</small>':(x.latest_payment_result?'<br><small>'+escapeHtml(x.latest_payment_result)+'</small>':'');
-  const canRecordCash=String(x.payment_method||'').toLowerCase().replace(/[-\\s]/g,'')==='cash'&&x.status==='completed'&&x.payment_status!=='paid';
-  const cashControl=canRecordCash?'<br><button class="btn green" style="margin-top:7px;padding:8px 10px;font-size:12px" type="button" onclick="adminRecordCash(\\''+x.id+'\\')">Record cash received</button>':'';
+  const canRecordCash=String(x.payment_method||'').toLowerCase().replace(/[-\s]/g,'')==='cash'&&String(x.status||'').toLowerCase()==='completed'&&String(x.payment_status||'').toLowerCase()!=='paid'&&String(x.latest_payment_status||'').toLowerCase()!=='paid';
+  const cashControl=canRecordCash?`<br><button class="btn green" style="margin-top:7px;padding:8px 10px;font-size:12px" type="button" onclick="adminRecordCash('${x.id}')">Record cash received</button>`:'';
   const paymentPill='<span class="bookingStatus '+escapeHtml(paymentState)+'">'+escapeHtml(paymentState)+'</span><br><small>'+escapeHtml(x.payment_method||'')+'</small>'+paymentExtra+cashControl;
   const date=x.created_at?new Date(x.created_at).toLocaleString('en-KE'):'—';
   const ref=String(x.id||'').slice(0,8).toUpperCase();
